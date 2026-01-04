@@ -20,6 +20,17 @@ AGENTIC_CODING_TOOLS: claude-code, codex-cli, gemini-cli
 
 - Based on the user's request, follow the `Cookbook` to determine which tool to use.
 
+### Auto-Close Feature
+
+The fork_terminal tool supports an optional auto-close feature:
+- Add `auto-close` or `--auto-close` to the command (at the beginning or end)
+- The terminal window/tab will automatically close after the command completes
+- Works with all tools: raw CLI commands, Claude Code, Codex CLI, and Gemini CLI
+- Examples:
+  - "fork terminal auto-close: ls -la"
+  - "fork terminal --auto-close use gemini to create hello.py"
+  - "fork terminal: npm test auto-close"
+
 ### Fork Summary User Prompts
 
 - IF: The user requests a fork terminal with a summary. This ONLY works for our agentic coding tools `AGENTIC_CODING_TOOLS`. The tool MUST BE enabled as well.

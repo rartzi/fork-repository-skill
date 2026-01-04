@@ -15,3 +15,4 @@ FAST_MODEL: haiku
 - Always use interactive mode (so leave off -p)
 - For the --model argument, use the DEFAULT_MODEL if not specified. If 'fast' is requested, use the FAST_MODEL. If 'heavy' is requested, use the HEAVY_MODEL.
 - Always run with `--dangerously-skip-permissions`
+- The fork_terminal tool supports `auto-close` or `--auto-close` to automatically close the terminal window after command completion.

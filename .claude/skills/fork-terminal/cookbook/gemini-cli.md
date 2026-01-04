@@ -15,3 +15,4 @@ FAST_MODEL: gemini-2.5-flash
 - Always use interactive mode with the -i flag as the last flag, right before the prompt (e.g., `gemini --model gemini-2.5-flash -y -i "prompt here"`)
 - For the --model argument, use the DEFAULT_MODEL if not specified. If 'fast' is requested, use the FAST_MODEL. If 'heavy' is requested, use the HEAVY_MODEL.
 - Always run with `--yolo` (or `-y` for short)
+- The fork_terminal tool supports `auto-close` or `--auto-close` to automatically close the terminal window after command completion.

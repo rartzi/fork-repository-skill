@@ -50,6 +50,48 @@ Each agentic tool supports model selection:
 - **"fast"**: Uses a lighter, faster model (e.g., `haiku`, `gpt-5.1-codex-mini`, `gemini-2.5-flash`)
 - **"heavy"**: Uses the most capable model
 
+## Auto-Close Feature
+
+The fork terminal skill supports an **auto-close** feature that automatically closes the terminal window/tab after the command completes. This is useful for quick tasks where you don't need to keep the terminal open.
+
+### Usage
+
+Add `auto-close` or `--auto-close` anywhere in your command:
+
+```
+# At the beginning
+"fork terminal auto-close: ls -la"
+
+# At the end
+"fork terminal: npm test auto-close"
+
+# With a flag
+"fork terminal --auto-close use gemini to create hello.py"
+```
+
+### Behavior by Platform
+
+| Platform    | Behavior                                                                 |
+| ----------- | ------------------------------------------------------------------------ |
+| **macOS**   | Creates terminal tab, waits for command completion, closes entire window |
+| **Windows** | Uses `/c` flag to close window after command completion                 |
+
+### Examples
+
+```
+# Quick directory listing
+"fork terminal auto-close: ls -la"
+
+# Run tests and close
+"fork terminal auto-close: npm test"
+
+# Generate a file with Gemini and close
+"fork terminal auto-close use gemini to create hello.py"
+
+# Run build with Claude Code and close
+"fork terminal --auto-close use claude code to run the build"
+```
+
 ## Usage Examples
 
 ### Examples you can run NOW
