@@ -5,7 +5,9 @@ Provides isolated execution environment for AI agents using E2B sandboxes.
 Supports Claude Code, Gemini CLI, and Codex CLI in secure cloud containers.
 """
 
+import os
 import sys
+from pathlib import Path
 from typing import Optional
 from credential_resolver import CredentialResolver, CredentialNotFoundError
 
@@ -22,19 +24,31 @@ class SandboxBackend:
         """
         self.verbose = verbose
         self.resolver = CredentialResolver()
+        self.template_id = self._load_template_id()
         self._ensure_e2b_available()
+
+    def _load_template_id(self) -> Optional[str]:
+        """Load E2B template ID from file if it exists"""
+        template_file = Path(__file__).parent / ".e2b_template_id"
+
+        if template_file.exists():
+            template_id = template_file.read_text().strip()
+            if template_id:
+                return template_id
+
+        return None
 
     def _ensure_e2b_available(self):
         """Ensure E2B SDK is installed"""
         try:
-            from e2b_code_interpreter import Sandbox
+            from e2b import Sandbox
             self.Sandbox = Sandbox
         except ImportError:
             print("❌ E2B SDK not installed.")
             print("\nTo use sandbox backend, install dependencies:")
             print("  pip install -r requirements.txt")
             print("\nOr install directly:")
-            print("  pip install e2b-code-interpreter")
+            print("  pip install e2b")
             sys.exit(1)
 
     def execute_agent(
@@ -82,45 +96,85 @@ class SandboxBackend:
 
         if self.verbose:
             print(f"\n🔨 Creating E2B sandbox for {agent}...")
+            if self.template_id:
+                print(f"📦 Using custom template: {self.template_id}")
+            else:
+                print(f"⚠️  Using base template (AI CLIs via wrappers)")
+                print(f"💡 Build custom template for better performance:")
+                print(f"   cd .claude/skills/fork-terminal/tools/e2b-template && ./build.sh")
 
         try:
-            # Create sandbox with injected credential
-            sandbox = self.Sandbox(
-                api_key=e2b_key,
-                env_vars={
-                    self.resolver.AGENT_KEY_MAP[agent]: agent_credential
-                }
-            )
+            # Set E2B API key as environment variable (required by E2B SDK)
+            original_e2b_key = os.environ.get('E2B_API_KEY')
+            os.environ['E2B_API_KEY'] = e2b_key
+
+            # Create sandbox with template if available
+            if self.template_id:
+                sandbox = self.Sandbox.create(template=self.template_id)
+            else:
+                # Use base template and install dependencies at runtime
+                sandbox = self.Sandbox.create()
+
+                if self.verbose:
+                    print("📦 Installing Python API libraries...")
+
+                # Install Python libraries for AI agents
+                install_cmd = "pip3 install -q anthropic google-genai openai"
+                sandbox.commands.run(install_cmd)
+
+                if self.verbose:
+                    print("✓ API libraries installed")
+
+            # Restore original E2B key if it existed
+            if original_e2b_key:
+                os.environ['E2B_API_KEY'] = original_e2b_key
+            elif 'E2B_API_KEY' in os.environ:
+                del os.environ['E2B_API_KEY']
 
             if self.verbose:
-                print(f"✓ Sandbox created: {sandbox.id}")
+                print(f"✓ Sandbox created: {sandbox.sandbox_id}")
                 print(f"🚀 Executing: {command}\n")
 
-            # Execute the agent command
-            result = sandbox.run_code(command)
+            # Write Python script to sandbox file system to avoid shell escaping issues
+            # Extract Python code from shell command: python3 -c "CODE"
+            if command.startswith('python3 -c "') and command.endswith('"'):
+                script_content = command[len('python3 -c "'):-1]
+            else:
+                script_content = command
 
-            # Capture output
-            output = ""
-            error = None
+            # Write script to temp file
+            sandbox.files.write("/tmp/ai_agent.py", script_content)
 
-            if hasattr(result, 'stdout'):
-                output += result.stdout
-            if hasattr(result, 'stderr') and result.stderr:
-                error = result.stderr
-            if hasattr(result, 'error') and result.error:
-                error = str(result.error)
+            # Execute with environment variable
+            env_var_name = self.resolver.AGENT_KEY_MAP[agent]
+            safe_credential = agent_credential.replace("'", "'\\''")
+            exec_command = f"export {env_var_name}='{safe_credential}' && python3 /tmp/ai_agent.py"
 
-            # Close sandbox if auto-close enabled
+            result = sandbox.commands.run(exec_command)
+
+            # Get command result
+            output = result.stdout if hasattr(result, 'stdout') else ""
+            error = result.stderr if hasattr(result, 'stderr') and result.stderr else None
+            exit_code = result.exit_code if hasattr(result, 'exit_code') else 0
+
+            if self.verbose:
+                if output:
+                    print(f"\n[Output]\n{output}")
+                if error:
+                    print(f"\n[Error]\n{error}")
+                print(f"\nExit code: {exit_code}")
+
+            # Kill sandbox if auto-close enabled
             if auto_close:
                 if self.verbose:
                     print("\n🔒 Auto-closing sandbox...")
-                sandbox.close()
+                sandbox.kill()
 
             return {
-                "success": error is None,
+                "success": exit_code == 0,
                 "output": output,
                 "error": error,
-                "sandbox_id": sandbox.id
+                "sandbox_id": sandbox.sandbox_id
             }
 
         except Exception as e:
@@ -141,6 +195,8 @@ class SandboxBackend:
         """
         Build the command to run the agent in the sandbox
 
+        Uses Python API libraries to run AI agents since CLI tools may not be available.
+
         Args:
             agent: Agent name
             prompt: User prompt
@@ -150,38 +206,50 @@ class SandboxBackend:
         Returns:
             Shell command to execute in sandbox
         """
-        # Escape single quotes in prompt for shell safety
-        safe_prompt = prompt.replace("'", "'\\''")
+        # Escape single quotes in prompt for shell and Python safety
+        safe_prompt = prompt.replace("'", "'\\''").replace('"', '\\"')
 
         if agent == "claude":
-            # Claude Code command
-            cmd = "claude"
-            if auto_close:
-                cmd += " -p"  # Non-interactive mode for auto-close
-            if model:
-                cmd += f" --model {model}"
-            cmd += f" '{safe_prompt}'"
-            return cmd
+            # Use Anthropic Python API
+            model_str = f'"{model}"' if model else '"claude-3-5-sonnet-20241022"'
+            return f'''python3 -c "
+import os, anthropic
+client = anthropic.Anthropic(api_key=os.environ['ANTHROPIC_API_KEY'])
+response = client.messages.create(
+    model={model_str},
+    max_tokens=4096,
+    messages=[{{'role': 'user', 'content': '{safe_prompt}'}}]
+)
+print(response.content[0].text)
+"'''
 
         elif agent == "gemini":
-            # Gemini CLI command
-            cmd = "gemini"
-            if auto_close:
-                cmd += " -p"  # Non-interactive mode for auto-close
-            if model:
-                cmd += f" --model {model}"
-            cmd += f" '{safe_prompt}'"
-            return cmd
+            # Use Google Genai Python API (new library)
+            model_str = f'"{model}"' if model else '"gemini-2.0-flash-exp"'
+            return f'''python3 -c "
+import os
+from google import genai
+client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
+response = client.models.generate_content(
+    model={model_str},
+    contents='{safe_prompt}'
+)
+print(response.text)
+"'''
 
         elif agent == "codex":
-            # Codex CLI command
-            cmd = "codex"
-            if auto_close:
-                cmd += " -p"  # Non-interactive mode for auto-close
-            if model:
-                cmd += f" --model {model}"
-            cmd += f" '{safe_prompt}'"
-            return cmd
+            # Use OpenAI Python API
+            model_str = f'"{model}"' if model else '"gpt-4-turbo-preview"'
+            return f'''python3 -c "
+import os
+from openai import OpenAI
+client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
+response = client.chat.completions.create(
+    model={model_str},
+    messages=[{{'role': 'user', 'content': '{safe_prompt}'}}]
+)
+print(response.choices[0].message.content)
+"'''
 
         else:
             raise ValueError(f"Unknown agent: {agent}")

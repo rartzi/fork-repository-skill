@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+"""
+Gemini CLI Wrapper for E2B Sandboxes
+
+Provides a CLI interface for Gemini using the Google Genai API.
+This allows running Gemini in E2B sandboxes where the full CLI isn't available.
+"""
+
+import sys
+import os
+from google import genai
+
+def main():
+    # Check for API key
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        print("Error: GEMINI_API_KEY environment variable not set", file=sys.stderr)
+        sys.exit(1)
+
+    # Create Gemini client
+    client = genai.Client(api_key=api_key)
+
+    # Parse arguments
+    prompt_mode = '-p' in sys.argv or '--prompt' in sys.argv
+    model_name = None
+
+    # Extract prompt
+    args = sys.argv[1:]
+
+    # Remove flags
+    args = [arg for arg in args if arg not in ['-p', '--prompt']]
+
+    # Check for model override
+    if '--model' in sys.argv:
+        model_idx = sys.argv.index('--model')
+        if model_idx + 1 < len(sys.argv):
+            model_name = sys.argv[model_idx + 1]
+            args = [arg for arg in args if arg not in ['--model', model_name]]
+
+    # Get prompt
+    if args:
+        prompt = ' '.join(args)
+    elif not sys.stdin.isatty():
+        # Read from stdin if piped
+        prompt = sys.stdin.read().strip()
+    else:
+        prompt = None
+
+    if not prompt:
+        print("Usage: gemini [-p] [--model MODEL] <prompt>", file=sys.stderr)
+        print("   or: echo 'prompt' | gemini", file=sys.stderr)
+        sys.exit(1)
+
+    # Use Gemini API
+    try:
+        # Default to Gemini 2.0 Flash
+        response = client.models.generate_content(
+            model=model_name or 'gemini-2.0-flash-exp',
+            contents=prompt
+        )
+
+        # Output response
+        print(response.text)
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

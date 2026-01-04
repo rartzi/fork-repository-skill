@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""
+Claude Code CLI Wrapper for E2B Sandboxes
+
+Provides a CLI interface similar to Claude Code but uses the Anthropic API.
+This allows running Claude in E2B sandboxes where the full CLI isn't available.
+"""
+
+import sys
+import os
+import anthropic
+
+def main():
+    # Check for API key
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        print("Error: ANTHROPIC_API_KEY environment variable not set", file=sys.stderr)
+        sys.exit(1)
+
+    # Parse arguments
+    prompt_mode = '-p' in sys.argv or '--prompt' in sys.argv
+    model = None
+
+    # Extract prompt
+    prompt = None
+    args = sys.argv[1:]
+
+    # Remove flags
+    args = [arg for arg in args if arg not in ['-p', '--prompt', '--dangerously-skip-permissions']]
+
+    # Check for model override
+    if '--model' in sys.argv:
+        model_idx = sys.argv.index('--model')
+        if model_idx + 1 < len(sys.argv):
+            model = sys.argv[model_idx + 1]
+            args = [arg for arg in args if arg not in ['--model', model]]
+
+    # Get prompt (everything else is the prompt)
+    if args:
+        prompt = ' '.join(args)
+    elif not sys.stdin.isatty():
+        # Read from stdin if piped
+        prompt = sys.stdin.read().strip()
+
+    if not prompt:
+        print("Usage: claude [-p] [--model MODEL] <prompt>", file=sys.stderr)
+        print("   or: echo 'prompt' | claude", file=sys.stderr)
+        sys.exit(1)
+
+    # Use Anthropic API
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+
+        # Default to Claude 3.5 Sonnet
+        model_name = model or "claude-3-5-sonnet-20241022"
+
+        message = client.messages.create(
+            model=model_name,
+            max_tokens=4096,
+            messages=[{
+                "role": "user",
+                "content": prompt
+            }]
+        )
+
+        # Output response
+        for block in message.content:
+            if hasattr(block, 'text'):
+                print(block.text)
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
