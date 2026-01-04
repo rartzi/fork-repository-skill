@@ -11,9 +11,14 @@ A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill that enabl
 
 ## Requirements
 
+**Core**:
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
 - [Gemini CLI](https://github.com/google-gemini/gemini-cli)
 - [Codex CLI](https://github.com/openai/codex)
+
+**Optional (for E2B Sandbox)**:
+- [E2B Account](https://e2b.dev/) - For isolated sandbox execution
+- Python dependencies: `pip install -r requirements.txt`
 
 ## What is a Claude Code Skill?
 
@@ -28,20 +33,33 @@ When you say something like "fork terminal to run tests with Claude Code", Claud
 ## Purpose
 
 This skill allows you to:
-- **Spawn parallel AI agents** in separate terminal windows
+- **Spawn parallel AI agents** in separate terminal windows OR isolated E2B sandboxes
 - **Run raw CLI commands** in new terminals
 - **Pass conversation context** to forked agents (summary mode)
+- **Execute agents securely** in cloud sandboxes (new!)
 
-This is useful when you want Claude to delegate work to another agent running independently, or when you need to run long-running commands in a separate terminal.
+This is useful when you want Claude to delegate work to another agent running independently, execute experimental code safely, or run long-running commands in a separate environment.
+
+## Execution Backends
+
+| Backend | Description | Use Case |
+|---------|-------------|----------|
+| **Local Terminal** | Spawns new terminal window on your machine | Fast, trusted tasks |
+| **E2B Sandbox** | Executes in isolated cloud VM | Secure, experimental, untrusted code |
+
+Add `in sandbox` to any command to use E2B backend:
+```bash
+"fork terminal use gemini in sandbox to test risky code"
+```
 
 ## Supported Tools
 
-| Tool            | Trigger Examples                      | Default Model          |
-| --------------- | ------------------------------------- | ---------------------- |
-| **Claude Code** | "fork terminal use claude code to..." | `opus`                 |
-| **Codex CLI**   | "fork terminal use codex to..."       | `gpt-5.1-codex-max`    |
-| **Gemini CLI**  | "fork terminal use gemini to..."      | `gemini-3-pro-preview` |
-| **Raw CLI**     | "fork terminal run ffmpeg..."         | N/A                    |
+| Tool            | Trigger Examples                      | Default Model          | Sandbox Support |
+| --------------- | ------------------------------------- | ---------------------- | --------------- |
+| **Claude Code** | "fork terminal use claude code to..." | `opus`                 | ✅ Yes          |
+| **Codex CLI**   | "fork terminal use codex to..."       | `gpt-5.1-codex-max`    | ✅ Yes          |
+| **Gemini CLI**  | "fork terminal use gemini to..."      | `gemini-3-pro-preview` | ✅ Yes          |
+| **Raw CLI**     | "fork terminal run ffmpeg..."         | N/A                    | ❌ Local only   |
 
 ### Model Modifiers
 
@@ -97,6 +115,119 @@ When auto-close is used with agentic coding tools (Claude Code, Codex CLI, Gemin
 # Run build with Claude Code and close
 "fork terminal --auto-close use claude code to run the build"
 ```
+
+## E2B Sandbox Execution (New!)
+
+Execute AI agents in isolated E2B cloud sandboxes for secure, scalable deployment.
+
+### Why Use Sandboxes?
+
+**Security Benefits**:
+- Complete isolation from your local system
+- No access to your local filesystem, credentials, or network
+- Safe execution of experimental or untrusted code
+- Limited blast radius if agent misbehaves
+
+**Use Cases**:
+- Testing risky or experimental code
+- Running untrusted agent-generated code
+- Parallel agent experiments without conflicts
+- Production agent deployment with isolation guarantees
+
+### Setup
+
+1. **Get E2B API Key**:
+   - Sign up at [e2b.dev](https://e2b.dev/)
+   - Copy your API key
+
+2. **Install Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Configure Credentials**:
+
+   Copy `.env.sample` to `.env` and fill in your keys:
+   ```bash
+   cp .env.sample .env
+   ```
+
+   Or use the credential waterfall (checked in order):
+   - Environment variables (highest priority)
+   - System keychain
+   - .env file
+   - Config files (~/.config/<tool>/credentials.json)
+
+### Sandbox Examples
+
+**Basic Sandbox Execution**:
+```bash
+"fork terminal use gemini in sandbox to create hello world in Python"
+```
+
+**With Auto-Close**:
+```bash
+"fork terminal use claude in sandbox to analyze this code auto-close"
+```
+
+**Experimental Code**:
+```bash
+"fork terminal use codex in sandbox to test this risky refactor"
+```
+
+**Parallel Sandbox Experiments**:
+```bash
+# Race all three agents on the same task, each in isolated sandbox
+"fork terminal use claude in sandbox to optimize algorithm auto-close"
+"fork terminal use gemini in sandbox to optimize algorithm auto-close"
+"fork terminal use codex in sandbox to optimize algorithm auto-close"
+```
+
+### Credential Security
+
+The sandbox backend uses **waterfall credential resolution**:
+
+1. **Environment Variable** (highest priority):
+   ```bash
+   export GEMINI_API_KEY="your-key"
+   ```
+
+2. **System Keychain** (recommended for security):
+   ```bash
+   # macOS
+   security add-generic-password -s GEMINI_API_KEY -a $USER -w "your-key"
+   ```
+
+3. **.env File** (project-specific):
+   ```bash
+   # .env (gitignored)
+   E2B_API_KEY=your_e2b_key
+   GEMINI_API_KEY=your_gemini_key
+   ANTHROPIC_API_KEY=your_anthropic_key
+   OPENAI_API_KEY=your_openai_key
+   ```
+
+4. **Config Files** (tool-native location):
+   ```bash
+   ~/.config/gemini/credentials.json
+   ```
+
+**Security Notes**:
+- Only the specific agent credential is injected into the sandbox
+- No AWS keys, GitHub tokens, or SSH keys are accessible
+- Sandboxes are destroyed after execution (with auto-close)
+- Environment variables allow testing with separate keys
+
+### Local vs Sandbox Comparison
+
+| Aspect | Local Terminal | E2B Sandbox |
+|--------|----------------|-------------|
+| **Speed** | Instant | Network latency (~2-5s) |
+| **Cost** | Free | E2B service costs |
+| **Security** | Full system access | Isolated VM |
+| **Filesystem** | Your local files | Isolated sandbox |
+| **Credentials** | All local credentials | Only injected credential |
+| **Use Case** | Trusted, fast tasks | Experimental, risky tasks |
 
 ## Usage Examples
 

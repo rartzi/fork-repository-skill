@@ -1,0 +1,7 @@
+# Fork Terminal Skill Dependencies
+
+# E2B Sandbox SDK for isolated agent execution
+e2b-code-interpreter>=0.0.8
+
+# Python dotenv for .env file support
+python-dotenv>=1.0.0

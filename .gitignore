@@ -140,3 +140,10 @@ temp/
 
 # macOS
 .DS_Store
+
+# Credential files (security)
+.mcp.json
+**/credentials.json
+**/.credentials
+.anthropic/
+.openai/

@@ -14,7 +14,9 @@ ENABLE_RAW_CLI_COMMANDS: true
 ENABLE_GEMINI_CLI: true
 ENABLE_CODEX_CLI: true
 ENABLE_CLAUDE_CODE: true
+ENABLE_E2B_SANDBOX: true
 AGENTIC_CODING_TOOLS: claude-code, codex-cli, gemini-cli
+BACKENDS: local, e2b-sandbox
 
 ## Instructions
 
@@ -56,10 +58,25 @@ The fork_terminal tool supports an optional auto-close feature:
 
 ## Cookbook
 
+### E2B Sandbox (Isolated Execution)
+
+- IF: The user requests sandbox execution AND `ENABLE_E2B_SANDBOX` is true.
+- THEN: Read and execute: `.claude/skills/fork-terminal/cookbook/e2b-sandbox.md`
+- TRIGGER KEYWORDS: "in sandbox", "use sandbox", "with sandbox", "sandbox:"
+- EXAMPLES:
+  - "fork terminal use gemini in sandbox to <xyz>"
+  - "fork terminal use claude in sandbox to <xyz> auto-close"
+  - "create a new terminal with codex in sandbox to <xyz>"
+- NOTES:
+  - Requires E2B_API_KEY credential
+  - Executes in isolated cloud VM
+  - More secure than local execution
+  - Use for experimental or untrusted code
+
 ### Raw CLI Commands
 
 - IF: The user requests a non-agentic coding tool AND `ENABLE_RAW_CLI_COMMANDS` is true.
-- THEN: Read and execute: `.claude/skills/fork-terminal/cookbook/cli-command.md` 
+- THEN: Read and execute: `.claude/skills/fork-terminal/cookbook/cli-command.md`
 - EXAMPLES:
   - "Create a new terminal to <xyz> with ffmpeg"
   - "Create a new terminal to <xyz> with curl"
