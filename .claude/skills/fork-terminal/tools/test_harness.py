@@ -189,9 +189,70 @@ class TestHarness:
             self.test_sandbox_execution(agent)
             print()  # Spacing between tests
 
+    def test_local_terminal_fork(self):
+        """Test local terminal forking"""
+        self.print_header("TEST 4: Local Terminal Fork")
+
+        import subprocess
+        import time
+
+        # Test file path
+        test_file = "/tmp/fork-terminal-test.txt"
+
+        # Clean up any existing test file
+        if os.path.exists(test_file):
+            os.remove(test_file)
+
+        print(f"\n🧪 Testing local terminal fork...")
+        print(f"   Command: echo 'Fork test successful' > {test_file}")
+
+        try:
+            from fork_terminal import fork_terminal
+
+            # Fork terminal with simple command
+            result = fork_terminal(f"echo 'Fork test successful' > {test_file} && sleep 1")
+
+            # Wait for command to execute
+            time.sleep(3)
+
+            # Check if file was created
+            if os.path.exists(test_file):
+                with open(test_file) as f:
+                    content = f.read().strip()
+
+                if "Fork test successful" in content:
+                    self.print_test(
+                        "Local Terminal Fork",
+                        "PASS",
+                        f"Terminal spawned and executed command"
+                    )
+                    self.record_result("local_fork", True, "Command executed successfully")
+                else:
+                    self.print_test(
+                        "Local Terminal Fork",
+                        "FAIL",
+                        f"File created but wrong content: {content}"
+                    )
+                    self.record_result("local_fork", False, "Wrong file content")
+            else:
+                self.print_test(
+                    "Local Terminal Fork",
+                    "FAIL",
+                    "Terminal spawned but command didn't execute in time"
+                )
+                self.record_result("local_fork", False, "Command timeout")
+
+            # Cleanup
+            if os.path.exists(test_file):
+                os.remove(test_file)
+
+        except Exception as e:
+            self.print_test("Local Terminal Fork", "FAIL", str(e))
+            self.record_result("local_fork", False, str(e))
+
     def test_fork_terminal_integration(self):
         """Test fork_terminal.py integration"""
-        self.print_header("TEST 4: Fork Terminal Integration")
+        self.print_header("TEST 5: Fork Terminal Integration")
 
         from fork_terminal import detect_backend, detect_agent
 
@@ -281,7 +342,13 @@ class TestHarness:
         else:
             self.test_all_sandbox_agents()
 
-        # Test 4: Integration
+        # Test 4: Local Terminal Fork
+        if not skip_local:
+            self.test_local_terminal_fork()
+        else:
+            print("\n⏭️  Skipping local terminal tests (--skip-local)")
+
+        # Test 5: Integration
         self.test_fork_terminal_integration()
 
         # Summary
