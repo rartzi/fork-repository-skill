@@ -76,6 +76,12 @@ Add `auto-close` or `--auto-close` anywhere in your command:
 | **macOS**   | Creates terminal tab, waits for command completion, closes entire window |
 | **Windows** | Uses `/c` flag to close window after command completion                 |
 
+### Interactive Mode Handling
+
+When auto-close is used with agentic coding tools (Claude Code, Codex CLI, Gemini CLI):
+- **With auto-close**: Tools run in **non-interactive mode** (using `-p` flag) so the command exits after completion, allowing the terminal to close automatically
+- **Without auto-close**: Tools run in **interactive mode** (default) to keep the session open for continued interaction
+
 ### Examples
 
 ```

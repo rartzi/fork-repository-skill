@@ -12,7 +12,8 @@ FAST_MODEL: haiku
 ## Instructions
 
 - Before executing the command, run `claude --help` to understand the command and its options.
-- Always use interactive mode (so leave off -p)
+- If auto-close is requested: Use non-interactive mode with -p flag (e.g., `claude -p "prompt here"`)
+- If auto-close is NOT requested: Use interactive mode (leave off -p)
 - For the --model argument, use the DEFAULT_MODEL if not specified. If 'fast' is requested, use the FAST_MODEL. If 'heavy' is requested, use the HEAVY_MODEL.
 - Always run with `--dangerously-skip-permissions`
 - The fork_terminal tool supports `auto-close` or `--auto-close` to automatically close the terminal window after command completion.

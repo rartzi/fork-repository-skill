@@ -26,6 +26,7 @@ The fork_terminal tool supports an optional auto-close feature:
 - Add `auto-close` or `--auto-close` to the command (at the beginning or end)
 - The terminal window/tab will automatically close after the command completes
 - Works with all tools: raw CLI commands, Claude Code, Codex CLI, and Gemini CLI
+- **Important**: When auto-close is used with agentic coding tools (Claude Code, Codex CLI, Gemini CLI), the tools will run in non-interactive mode (using `-p` flag) to ensure the command exits after completion. Without auto-close, they run in interactive mode for continued interaction.
 - Examples:
   - "fork terminal auto-close: ls -la"
   - "fork terminal --auto-close use gemini to create hello.py"
