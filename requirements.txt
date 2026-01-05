@@ -1,0 +1,12 @@
+# Fork Terminal Skill Dependencies
+
+# E2B Sandbox SDK for isolated agent execution
+e2b>=2.0.0
+
+# Python dotenv for .env file support
+python-dotenv>=1.0.0
+
+# AI API libraries (for sandbox execution)
+anthropic>=0.39.0
+google-genai>=0.1.0
+openai>=1.0.0
