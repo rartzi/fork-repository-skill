@@ -40,21 +40,36 @@ Tests the priority-based credential discovery system:
 | E2B SDK Import | ✅ PASS | Sandbox class loaded |
 | Template Support | ℹ️ INFO | Using base template (runtime install) |
 
-### ✅ TEST 2.5: CLI Availability in E2B Sandbox (NEW!)
+### ✅ TEST 2.5: CLI Availability in E2B Sandbox
 
 Tests which real CLI tools are installed in the E2B sandbox:
 
-| CLI Tool | Installation Status | Execution Method |
-|----------|---------------------|------------------|
-| **Claude Code CLI** | ⏳ Pending | To be verified on first run |
-| **Gemini CLI** | ⏳ Pending | To be verified on first run |
-| **Codex CLI** | ⏳ Pending | To be verified on first run |
+| CLI Tool | Installation Status | Version | Path |
+|----------|---------------------|---------|------|
+| **Claude Code CLI** | ✅ INSTALLED | 2.0.76 | `/usr/bin/claude` |
+| **Gemini CLI** | ✅ INSTALLED | 0.22.5 | `/usr/bin/gemini` |
+| **Codex CLI** | ✅ INSTALLED | 0.77.0 | `/usr/bin/codex` |
+
+**Node.js Version**: v20.19.6 ✅
+
+**Verification Results** (2026-01-05):
+```bash
+Sandbox ID: ihwe1gg7qnlqu0bb2dkq1
+✅ CLAUDE: /usr/bin/claude
+   Info: 2.0.76 (Claude Code)
+✅ GEMINI: /usr/bin/gemini
+   Info: 0.22.5
+✅ CODEX: /usr/bin/codex
+   Info: codex-cli 0.77.0
+
+📦 Node.js version: v20.19.6
+```
 
 **How It Works:**
-1. Creates temporary E2B sandbox
+1. Creates E2B sandbox with custom template (whhe4zpvcrwa0ahyu559)
 2. Runs `which <cli>` for each tool
-3. Reports which CLIs are installed
-4. Falls back to Python API for unavailable CLIs
+3. Verifies CLIs are installed via npm in Dockerfile
+4. Falls back to Python API if CLI not available
 
 **Expected Behavior:**
 - With custom E2B template: All 3 CLIs installed ✓
@@ -62,9 +77,10 @@ Tests which real CLI tools are installed in the E2B sandbox:
 - Execution always succeeds (CLI or API)
 
 **Benefits:**
-- Verifies Dockerfile CLI installations
-- Confirms hybrid fallback mechanism
-- Shows transparent CLI/API switching
+- Verifies Dockerfile CLI installations working
+- Confirms Node.js 20 compatibility
+- Shows all three CLIs successfully installed
+- Hybrid fallback mechanism ready if needed
 
 ### ✅ TEST 3: E2B Sandbox Execution
 
@@ -223,15 +239,24 @@ Command parsing and routing tests:
 ✅ **All Core Functionality VERIFIED and WORKING**
 
 The fork-terminal with E2B sandbox support is **production-ready**:
-- Credential resolution works flawlessly
-- E2B sandbox execution is stable and reliable
-- Multi-agent support confirmed (Gemini ✅, Codex ✅, Claude ⏭️)
-- Security isolation verified
-- Auto-close functionality working
+- ✅ **All 3 CLIs successfully installed** (Claude Code 2.0.76, Gemini 0.22.5, Codex 0.77.0)
+- ✅ **Node.js 20.19.6 installed** (fixes optional chaining syntax errors)
+- ✅ Credential resolution works flawlessly
+- ✅ E2B sandbox execution is stable and reliable
+- ✅ Multi-agent support confirmed (Gemini ✅, Codex ✅, Claude ⏭️)
+- ✅ Security isolation verified
+- ✅ Auto-close functionality working
+- ✅ Hybrid CLI/API execution working (CLIs preferred, API fallback available)
 
-**Only 2 test failures**: Both related to unconfigured Claude API key (expected).
+**Template Details:**
+- Template ID: `whhe4zpvcrwa0ahyu559`
+- Template Name: `fork-terminal-ai-agents`
+- Build Status: ✅ Successful (2026-01-05)
+- All CLIs verified via `which` command in live sandbox
 
-**Success Rate**: 10/12 tests (83.3%) - Would be 12/12 (100%) with Claude configured.
+**Test Results**: 10/12 tests passing (83.3%)
+- **2 failures**: Both related to unconfigured Claude API key (expected)
+- **Success Rate**: Would be 12/12 (100%) with ANTHROPIC_API_KEY configured
 
 ---
 

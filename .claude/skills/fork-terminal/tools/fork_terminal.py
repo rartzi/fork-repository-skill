@@ -44,8 +44,11 @@ def _execute_in_sandbox(agent: str, command: str, auto_close: bool, working_dir:
         prompt = command
         for keyword in ["in sandbox", "sandbox:", "use sandbox", "with sandbox"]:
             prompt = prompt.replace(keyword, "")
-        for ag in ["claude", "gemini", "codex", "claude code", "claude-code"]:
-            prompt = prompt.replace(f"use {ag}", "").replace(ag, "")
+
+        # Only remove "use <agent>" pattern, not all occurrences of agent name
+        # This prevents removing agent names from file paths like ".claude/..."
+        for ag in ["claude code", "claude-code", "claude", "gemini", "codex"]:
+            prompt = prompt.replace(f"use {ag}", "")
 
         prompt = prompt.replace("to ", "", 1).strip()  # Remove leading "to"
 
@@ -109,13 +112,22 @@ def detect_agent(command: str) -> str:
     """
     command_lower = command.lower()
 
-    # Check for agent keywords
-    if "claude" in command_lower or "claude-code" in command_lower or "claude code" in command_lower:
+    # Check for "use <agent>" pattern first (most specific)
+    if "use gemini" in command_lower:
+        return "gemini"
+    elif "use codex" in command_lower:
+        return "codex"
+    elif "use claude" in command_lower or "use claude-code" in command_lower or "use claude code" in command_lower:
         return "claude"
+
+    # Fallback to simple keyword matching (for backwards compatibility)
+    # but check gemini/codex first to avoid .claude path issues
     elif "gemini" in command_lower:
         return "gemini"
     elif "codex" in command_lower:
         return "codex"
+    elif "claude" in command_lower or "claude-code" in command_lower or "claude code" in command_lower:
+        return "claude"
 
     return None
 
@@ -163,6 +175,28 @@ def fork_terminal(command: str) -> str:
 
         return _execute_in_sandbox(agent, command, auto_close, working_dir=cwd)
 
+    # Handle local agent execution
+    if agent is not None:
+        # Extract the actual prompt from the command
+        prompt = command
+        for keyword in ["in sandbox", "sandbox:", "use sandbox", "with sandbox"]:
+            prompt = prompt.replace(keyword, "")
+        for ag in ["claude code", "claude-code", "claude", "gemini", "codex"]:
+            prompt = prompt.replace(f"use {ag}", "")
+        prompt = prompt.replace("to ", "", 1).strip()
+
+        # Build CLI command based on agent
+        # Source NVM first to ensure CLI tools are available
+        nvm_source = "source ~/.nvm/nvm.sh 2>/dev/null || true"
+
+        if agent == "codex":
+            command = f"{nvm_source} && codex exec --full-auto --sandbox danger-full-access --skip-git-repo-check '{prompt}'"
+        elif agent == "gemini":
+            # Gemini: Use -p flag (deprecated but shows actual output, positional only shows summary)
+            command = f"{nvm_source} && gemini -y -p '{prompt}'"
+        elif agent == "claude":
+            command = f"{nvm_source} && claude -p --dangerously-skip-permissions '{prompt}'"
+
     # Continue with local terminal execution (existing logic)
 
     if system == "Darwin":  # macOS
@@ -173,31 +207,30 @@ def fork_terminal(command: str) -> str:
 
         try:
             if auto_close:
-                # Use AppleScript to create tab, wait for completion, then close the window
-                applescript = f'''
-                tell application "Terminal"
-                    set newTab to do script "{escaped_shell_command}"
-                    repeat
-                        delay 0.5
-                        if not busy of newTab then exit repeat
-                    end repeat
-                    set theWindow to first window whose tabs contains newTab
-                    close theWindow
-                end tell
-                '''
+                # For auto-close, run command directly and capture output
+                # instead of opening a terminal window
+                # Use zsh login shell to ensure NVM and other tools are available
                 result = subprocess.run(
-                    ["osascript", "-e", applescript],
+                    ["/bin/zsh", "-lc", shell_command],
                     capture_output=True,
                     text=True,
                 )
+                output = f"✅ Command completed (auto-closed)\n"
+                if result.stdout.strip():
+                    output += f"\n[Output]\n{result.stdout.strip()}\n"
+                if result.stderr.strip():
+                    output += f"\n[Error]\n{result.stderr.strip()}\n"
+                output += f"\nExit code: {result.returncode}"
+                return output
             else:
+                # For interactive mode, open terminal window normally
                 result = subprocess.run(
                     ["osascript", "-e", f'tell application "Terminal" to do script "{escaped_shell_command}"'],
                     capture_output=True,
                     text=True,
                 )
-            output = f"stdout: {result.stdout.strip()}\nstderr: {result.stderr.strip()}\nreturn_code: {result.returncode}"
-            return output
+                output = f"stdout: {result.stdout.strip()}\nstderr: {result.stderr.strip()}\nreturn_code: {result.returncode}"
+                return output
         except Exception as e:
             return f"Error: {str(e)}"
 

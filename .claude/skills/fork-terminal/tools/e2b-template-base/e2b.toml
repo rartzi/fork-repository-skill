@@ -1,0 +1,15 @@
+# This is a config for E2B sandbox template.
+# You can use template ID (r12krftxdgs4a5vq97hz) or template name (fork-terminal-base) to create a sandbox:
+
+# Python SDK
+# from e2b import Sandbox, AsyncSandbox
+# sandbox = Sandbox.create("fork-terminal-base") # Sync sandbox
+# sandbox = await AsyncSandbox.create("fork-terminal-base") # Async sandbox
+
+# JS SDK
+# import { Sandbox } from 'e2b'
+# const sandbox = await Sandbox.create('fork-terminal-base')
+
+dockerfile = "Dockerfile"
+template_name = "fork-terminal-base"
+template_id = "r12krftxdgs4a5vq97hz"

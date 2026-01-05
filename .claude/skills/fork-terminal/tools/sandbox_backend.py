@@ -25,18 +25,64 @@ class SandboxBackend:
         """
         self.verbose = verbose
         self.resolver = CredentialResolver()
-        self.template_id = self._load_template_id()
+        self.template_id_ai = self._load_template_id("ai")
+        self.template_id_base = self._load_template_id("base")
         self._ensure_e2b_available()
 
-    def _load_template_id(self) -> Optional[str]:
-        """Load E2B template ID from file if it exists"""
-        template_file = Path(__file__).parent / ".e2b_template_id"
+    def _load_template_id(self, template_type: str = "ai") -> Optional[str]:
+        """
+        Load E2B template ID from file if it exists
+
+        Args:
+            template_type: "ai" for AI agents template, "base" for base template
+
+        Returns:
+            Template ID or None
+        """
+        if template_type == "ai":
+            template_file = Path(__file__).parent / ".e2b_template_id"
+        else:
+            template_file = Path(__file__).parent / ".e2b_template_id_base"
 
         if template_file.exists():
             template_id = template_file.read_text().strip()
             if template_id:
                 return template_id
 
+        return None
+
+    def _select_template(self, agent: Optional[str] = None) -> Optional[str]:
+        """
+        Select appropriate E2B template based on use case
+
+        Args:
+            agent: Agent name ("claude", "gemini", "codex") or None for raw CLI
+
+        Returns:
+            Template ID to use, or None for base E2B sandbox
+        """
+        # If using an AI agent and AI template is available, use it
+        if agent and agent.lower() in ["claude", "gemini", "codex"]:
+            if self.template_id_ai:
+                if self.verbose:
+                    print(f"📦 Using AI agents template: {self.template_id_ai[:12]}...")
+                return self.template_id_ai
+
+        # For raw CLI commands, use lightweight base template if available
+        if self.template_id_base:
+            if self.verbose:
+                print(f"📦 Using base template: {self.template_id_base[:12]}...")
+            return self.template_id_base
+
+        # Fallback to AI template if no base template
+        if self.template_id_ai:
+            if self.verbose:
+                print(f"📦 Using AI agents template (base not available): {self.template_id_ai[:12]}...")
+            return self.template_id_ai
+
+        # No templates available, use default E2B sandbox
+        if self.verbose:
+            print("📦 Using default E2B sandbox (no custom template)")
         return None
 
     def _ensure_e2b_available(self):
@@ -70,7 +116,8 @@ class SandboxBackend:
 
         # Pattern 1: Common file extensions
         file_patterns = [
-            r'\b([a-zA-Z0-9_\-/.]+\.(?:md|py|js|ts|tsx|jsx|json|yaml|yml|txt|csv|html|css|sh|bash))\b',
+            r'(\.[a-zA-Z0-9_\-/]+\.(?:md|py|js|ts|tsx|jsx|json|yaml|yml|txt|csv|html|css|sh|bash))\b',  # Paths starting with .
+            r'\b([a-zA-Z0-9_\-/]+\.(?:md|py|js|ts|tsx|jsx|json|yaml|yml|txt|csv|html|css|sh|bash))\b',  # Regular paths
             r'\b([A-Z][A-Z0-9_]+\.md)\b',  # UPPERCASE.md files like SKILL.MD, README.MD
             r'\b(my\s+)?([a-zA-Z0-9_\-]+\.[a-zA-Z0-9]+)\b',  # "my file.txt" pattern
         ]
@@ -320,23 +367,20 @@ class SandboxBackend:
 
         if self.verbose:
             print(f"\n🔨 Creating E2B sandbox for {agent}...")
-            if self.template_id:
-                print(f"📦 Using custom template: {self.template_id}")
-            else:
-                print(f"⚠️  Using base template (AI CLIs via wrappers)")
-                print(f"💡 Build custom template for better performance:")
-                print(f"   cd .claude/skills/fork-terminal/tools/e2b-template && ./build.sh")
 
         try:
             # Set E2B API key as environment variable (required by E2B SDK)
             original_e2b_key = os.environ.get('E2B_API_KEY')
             os.environ['E2B_API_KEY'] = e2b_key
 
-            # Create sandbox with template if available
-            if self.template_id:
-                sandbox = self.Sandbox.create(template=self.template_id)
+            # Select appropriate template based on agent
+            template_id = self._select_template(agent=agent)
+
+            # Create sandbox with selected template
+            if template_id:
+                sandbox = self.Sandbox.create(template=template_id)
             else:
-                # Use base template and install dependencies at runtime
+                # Use default E2B sandbox and install dependencies at runtime
                 sandbox = self.Sandbox.create()
 
                 if self.verbose:
@@ -382,7 +426,13 @@ class SandboxBackend:
                 # CLI command: execute directly with environment variable
                 if self.verbose:
                     print(f"🚀 Executing CLI: {command}\n")
-                exec_command = f"export {env_var_name}='{safe_credential}' && {command}"
+
+                # For Codex, export both CODEX_API_KEY and OPENAI_API_KEY
+                # (CLI expects CODEX_API_KEY, but user might have OPENAI_API_KEY)
+                if agent == "codex":
+                    exec_command = f"export CODEX_API_KEY='{safe_credential}' && export OPENAI_API_KEY='{safe_credential}' && {command}"
+                else:
+                    exec_command = f"export {env_var_name}='{safe_credential}' && {command}"
             else:
                 # Python API command: write script to file and execute
                 if self.verbose:
@@ -398,7 +448,8 @@ class SandboxBackend:
                 sandbox.files.write("/tmp/ai_agent.py", script_content)
                 exec_command = f"export {env_var_name}='{safe_credential}' && python3 /tmp/ai_agent.py"
 
-            result = sandbox.commands.run(exec_command)
+            # Execute with 5 minute timeout (AI agents can take time to respond)
+            result = sandbox.commands.run(exec_command, timeout=300)
 
             # Get command result
             output = result.stdout if hasattr(result, 'stdout') else ""
@@ -524,15 +575,15 @@ class SandboxBackend:
 
         elif agent == "gemini":
             model_flag = f"--model {model}" if model else ""
-            # Gemini CLI: gemini -p "prompt"
-            # Note: Exact syntax may need verification
-            return f"gemini -p '{safe_prompt}' {model_flag}".strip()
+            # Gemini CLI: gemini -y -p "prompt"
+            # Note: -y (--yolo) flag required, -p flag deprecated but shows actual output
+            return f"gemini -y -p '{safe_prompt}' {model_flag}".strip()
 
         elif agent == "codex":
-            model_flag = f"--model {model}" if model else ""
-            # Codex CLI: codex -p "prompt"
-            # Note: May not support non-interactive mode, will fallback to API
-            return f"codex -p '{safe_prompt}' {model_flag}".strip()
+            # Codex CLI non-interactive mode: codex exec "prompt"
+            # Use --full-auto for file modifications, --sandbox danger-full-access for full access,
+            # and --skip-git-repo-check since sandbox may not have git repo
+            return f"codex exec --full-auto --sandbox danger-full-access --skip-git-repo-check '{safe_prompt}'".strip()
 
         else:
             raise ValueError(f"CLI not supported for agent: {agent}")
