@@ -113,6 +113,60 @@ class TestHarness:
             self.print_test("Import E2B SDK", "FAIL", str(e))
             self.record_result("e2b_sdk_import", False, str(e))
 
+    def test_cli_availability(self):
+        """Test CLI availability in E2B sandbox"""
+        self.print_header("TEST 2.5: CLI Availability in E2B Sandbox")
+
+        try:
+            # Check if E2B credentials are available
+            self.resolver.get_credential("e2b", verbose=False)
+        except CredentialNotFoundError:
+            self.print_test("CLI Availability Check", "SKIP", "Missing E2B credentials")
+            self.record_result("cli_availability", False, "Missing E2B credentials")
+            return
+
+        print("\n🔍 Checking which CLIs are installed in sandbox...\n")
+
+        try:
+            backend = SandboxBackend(verbose=False)
+
+            # Create a temporary sandbox to check CLI availability
+            from e2b import Sandbox
+            e2b_key = self.resolver.get_credential("e2b", verbose=False)
+            sandbox = Sandbox(api_key=e2b_key, timeout=60)
+
+            try:
+                agents = ["claude", "gemini", "codex"]
+                cli_status = {}
+
+                for agent in agents:
+                    available = backend._check_cli_availability(agent, sandbox)
+                    cli_status[agent] = available
+
+                    status = "PASS" if available else "INFO"
+                    details = "CLI installed ✓" if available else "Using Python API fallback"
+
+                    self.print_test(
+                        f"{agent.upper()} CLI",
+                        status,
+                        details
+                    )
+                    self.record_result(f"cli_{agent}", available, details)
+
+                # Summary
+                installed_count = sum(1 for v in cli_status.values() if v)
+                print(f"\n   📊 Summary: {installed_count}/3 CLIs installed")
+                print(f"   Sandbox ID: {sandbox.sandbox_id}")
+
+            finally:
+                # Clean up
+                sandbox.close()
+                print("   🧹 Sandbox closed\n")
+
+        except Exception as e:
+            self.print_test("CLI Availability Check", "FAIL", str(e))
+            self.record_result("cli_availability", False, str(e))
+
     def test_sandbox_execution(self, agent: str, prompt: str = "tell me a very short joke"):
         """Test E2B sandbox execution for an agent"""
 
@@ -540,6 +594,9 @@ class TestHarness:
 
         # Test 2: Sandbox Backend
         self.test_sandbox_backend_init()
+
+        # Test 2.5: CLI Availability
+        self.test_cli_availability()
 
         # Test 3: Sandbox Execution
         if specific_agent:
