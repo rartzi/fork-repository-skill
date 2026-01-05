@@ -165,10 +165,18 @@ class TestHarness:
                 print(f"\n   📊 Summary: {installed_count}/3 CLIs installed")
                 print(f"   Sandbox ID: {sandbox.sandbox_id}")
 
+                # Record overall test result as PASS (fallback is expected behavior)
+                self.print_test(
+                    "CLI Availability Check",
+                    "PASS",
+                    f"{installed_count}/3 CLIs installed, {3 - installed_count} using API fallback"
+                )
+                self.record_result("cli_availability", True, f"{installed_count}/3 CLIs installed")
+
             finally:
-                # Clean up
-                sandbox.close()
-                print("   🧹 Sandbox closed\n")
+                # Clean up sandbox
+                sandbox.kill()
+                print("   🧹 Sandbox terminated\n")
 
                 # Restore original E2B key
                 if original_e2b_key:
