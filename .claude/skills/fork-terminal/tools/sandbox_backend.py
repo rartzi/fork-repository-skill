@@ -85,6 +85,12 @@ class SandboxBackend:
                 if not filename:
                     continue
 
+                # Security: Prevent path traversal attacks
+                if '..' in filename or filename.startswith('/'):
+                    if self.verbose:
+                        print(f"⚠️  Skipping suspicious file path: {filename}")
+                    continue
+
                 # Try to resolve the file path
                 local_path = Path(working_dir) / filename
 
@@ -214,8 +220,20 @@ class SandboxBackend:
                     continue
 
                 try:
+                    # Security: Validate file is within output directory
+                    if not sandbox_file_path.startswith(f"{sandbox_output_dir}/"):
+                        if self.verbose:
+                            print(f"   ⚠️  Skipping file outside output directory: {sandbox_file_path}")
+                        continue
+
                     # Get relative path from /home/user/output/
                     relative_path = sandbox_file_path.replace(f"{sandbox_output_dir}/", "")
+
+                    # Security: Prevent directory traversal in relative path
+                    if '..' in relative_path or relative_path.startswith('/'):
+                        if self.verbose:
+                            print(f"   ⚠️  Skipping suspicious path: {relative_path}")
+                        continue
 
                     # Create local file path
                     local_file_path = local_output_path / relative_path
