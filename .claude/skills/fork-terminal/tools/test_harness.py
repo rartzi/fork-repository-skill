@@ -133,7 +133,14 @@ class TestHarness:
             # Create a temporary sandbox to check CLI availability
             from e2b import Sandbox
             e2b_key = self.resolver.get_credential("e2b", verbose=False)
-            sandbox = Sandbox(api_key=e2b_key, timeout=60)
+
+            # Set E2B API key in environment (E2B SDK requires this)
+            import os
+            original_e2b_key = os.environ.get('E2B_API_KEY')
+            os.environ['E2B_API_KEY'] = e2b_key
+
+            # Create sandbox using E2B SDK
+            sandbox = Sandbox.create(timeout=60)
 
             try:
                 agents = ["claude", "gemini", "codex"]
@@ -162,6 +169,12 @@ class TestHarness:
                 # Clean up
                 sandbox.close()
                 print("   🧹 Sandbox closed\n")
+
+                # Restore original E2B key
+                if original_e2b_key:
+                    os.environ['E2B_API_KEY'] = original_e2b_key
+                elif 'E2B_API_KEY' in os.environ:
+                    del os.environ['E2B_API_KEY']
 
         except Exception as e:
             self.print_test("CLI Availability Check", "FAIL", str(e))
