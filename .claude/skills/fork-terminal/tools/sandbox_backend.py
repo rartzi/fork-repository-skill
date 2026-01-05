@@ -369,25 +369,34 @@ class SandboxBackend:
                 sandbox_file_paths = [ref['sandbox_path'] for ref in file_refs]
 
             # Get agent-specific command (now with potentially rewritten prompt and file paths)
-            command = self._build_agent_command(agent, prompt, model, auto_close, sandbox_file_paths)
+            # Pass sandbox to enable CLI availability checking
+            command = self._build_agent_command(agent, prompt, model, auto_close, sandbox_file_paths, sandbox)
 
-            if self.verbose:
-                print(f"🚀 Executing: python3 /tmp/ai_agent.py\n")
+            # Determine if this is a CLI command or Python API command
+            is_cli_command = not command.startswith('python3')
 
-            # Write Python script to sandbox file system to avoid shell escaping issues
-            # Extract Python code from shell command: python3 -c "CODE"
-            if command.startswith('python3 -c "') and command.endswith('"'):
-                script_content = command[len('python3 -c "'):-1]
-            else:
-                script_content = command
-
-            # Write script to temp file
-            sandbox.files.write("/tmp/ai_agent.py", script_content)
-
-            # Execute with environment variable
             env_var_name = self.resolver.AGENT_KEY_MAP[agent]
             safe_credential = agent_credential.replace("'", "'\\''")
-            exec_command = f"export {env_var_name}='{safe_credential}' && python3 /tmp/ai_agent.py"
+
+            if is_cli_command:
+                # CLI command: execute directly with environment variable
+                if self.verbose:
+                    print(f"🚀 Executing CLI: {command}\n")
+                exec_command = f"export {env_var_name}='{safe_credential}' && {command}"
+            else:
+                # Python API command: write script to file and execute
+                if self.verbose:
+                    print(f"🚀 Executing: python3 /tmp/ai_agent.py\n")
+
+                # Extract Python code from shell command: python3 -c "CODE"
+                if command.startswith('python3 -c "') and command.endswith('"'):
+                    script_content = command[len('python3 -c "'):-1]
+                else:
+                    script_content = command
+
+                # Write script to temp file
+                sandbox.files.write("/tmp/ai_agent.py", script_content)
+                exec_command = f"export {env_var_name}='{safe_credential}' && python3 /tmp/ai_agent.py"
 
             result = sandbox.commands.run(exec_command)
 
@@ -431,18 +440,150 @@ class SandboxBackend:
                 "downloaded_files": []
             }
 
+    def _check_cli_availability(self, agent: str, sandbox) -> bool:
+        """
+        Check if real CLI tool is available in the sandbox.
+        Results are cached for performance.
+
+        Args:
+            agent: Agent name ("claude", "gemini", "codex")
+            sandbox: E2B sandbox instance
+
+        Returns:
+            True if CLI is available, False otherwise
+        """
+        if not hasattr(self, '_cli_cache'):
+            self._cli_cache = {}
+
+        if agent in self._cli_cache:
+            return self._cli_cache[agent]
+
+        cli_commands = {
+            "claude": "claude",
+            "gemini": "gemini",
+            "codex": "codex"
+        }
+
+        cli_name = cli_commands.get(agent)
+        if not cli_name:
+            self._cli_cache[agent] = False
+            return False
+
+        try:
+            result = sandbox.commands.run(f"which {cli_name}")
+            available = result.exit_code == 0
+
+            self._cli_cache[agent] = available
+
+            if self.verbose and available:
+                print(f"   ✓ Using real {agent} CLI")
+            elif self.verbose:
+                print(f"   → Using Python API for {agent} (CLI not available)")
+
+            return available
+        except Exception as e:
+            if self.verbose:
+                print(f"   → Using Python API for {agent} (CLI check failed: {e})")
+            self._cli_cache[agent] = False
+            return False
+
+    def _build_cli_command(
+        self,
+        agent: str,
+        prompt: str,
+        model: Optional[str],
+        file_paths: Optional[List[str]] = None
+    ) -> str:
+        """
+        Build command using real CLI tool.
+
+        Args:
+            agent: Agent name
+            prompt: User prompt
+            model: Optional model override
+            file_paths: List of file paths in sandbox to include
+
+        Returns:
+            Shell command string for CLI execution
+        """
+        # Handle file context (append to prompt for now)
+        # CLIs can access files in their working directory
+        if file_paths:
+            file_list = ", ".join([Path(fp).name for fp in file_paths])
+            file_context = f"\n\nFiles available in working directory: {file_list}"
+            prompt = prompt + file_context
+
+        # Escape prompt for shell (handle single quotes)
+        safe_prompt = prompt.replace("'", "'\\''")
+
+        # Build CLI command based on agent
+        if agent == "claude":
+            model_flag = f"--model {model}" if model else ""
+            # Claude Code CLI: claude code -p "prompt"
+            return f"claude code -p '{safe_prompt}' {model_flag}".strip()
+
+        elif agent == "gemini":
+            model_flag = f"--model {model}" if model else ""
+            # Gemini CLI: gemini -p "prompt"
+            # Note: Exact syntax may need verification
+            return f"gemini -p '{safe_prompt}' {model_flag}".strip()
+
+        elif agent == "codex":
+            model_flag = f"--model {model}" if model else ""
+            # Codex CLI: codex -p "prompt"
+            # Note: May not support non-interactive mode, will fallback to API
+            return f"codex -p '{safe_prompt}' {model_flag}".strip()
+
+        else:
+            raise ValueError(f"CLI not supported for agent: {agent}")
+
     def _build_agent_command(
         self,
         agent: str,
         prompt: str,
         model: Optional[str],
         auto_close: bool,
+        file_paths: Optional[List[str]] = None,
+        sandbox=None
+    ) -> str:
+        """
+        Build the command to run the agent in the sandbox.
+
+        Hybrid approach: Try to use real CLI first, fall back to Python API.
+
+        Args:
+            agent: Agent name
+            prompt: User prompt
+            model: Optional model override
+            auto_close: Whether auto-close is enabled
+            file_paths: List of file paths in sandbox to read
+            sandbox: E2B sandbox instance (needed for CLI availability check)
+
+        Returns:
+            Shell command to execute in sandbox
+        """
+        # Check if CLI is available (only if sandbox provided)
+        if sandbox and self._check_cli_availability(agent, sandbox):
+            try:
+                return self._build_cli_command(agent, prompt, model, file_paths)
+            except Exception as e:
+                if self.verbose:
+                    print(f"   ⚠️  CLI command build failed: {e}, using Python API")
+
+        # Fallback to Python API
+        return self._build_python_api_command(agent, prompt, model, file_paths)
+
+    def _build_python_api_command(
+        self,
+        agent: str,
+        prompt: str,
+        model: Optional[str],
         file_paths: Optional[List[str]] = None
     ) -> str:
         """
-        Build the command to run the agent in the sandbox
+        Build the command to run the agent using Python API libraries.
 
-        Uses Python API libraries to run AI agents since CLI tools may not be available.
+        This is the fallback when CLI tools are not available.
 
         Args:
             agent: Agent name

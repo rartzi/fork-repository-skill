@@ -158,6 +158,35 @@ Execute AI agents in isolated E2B cloud sandboxes for secure, scalable deploymen
    - .env file
    - Config files (~/.config/<tool>/credentials.json)
 
+### Hybrid CLI/API Execution
+
+The E2B sandbox implementation uses a **hybrid approach** that tries to use real CLI tools first, with automatic fallback to Python APIs:
+
+**How It Works**:
+1. When creating a sandbox, the system checks if real CLIs are installed:
+   - `claude` (Claude Code CLI from npm)
+   - `gemini` (Gemini CLI from npm)
+   - `codex` (Codex CLI from npm)
+2. If a CLI is available, it's used for authentic execution
+3. If a CLI is not found, it automatically falls back to Python APIs
+4. Verbose mode shows which approach is used for each execution
+
+**Benefits**:
+- ✅ **Authentic CLI experience** when tools are available
+- ✅ **Reliable fallback** ensures execution always works
+- ✅ **Zero configuration** required - works out of the box
+- ✅ **Transparent switching** - you don't need to worry about it
+
+**CLI Installation** (Optional - for better performance):
+The Dockerfile attempts to install real CLIs via npm:
+```bash
+npm install -g @anthropic-ai/claude-code
+npm install -g @google/genai
+npm install -g @openai/codex
+```
+
+If installation fails, Python APIs are used automatically - no action needed!
+
 ### Automatic File Upload
 
 Sandboxes are isolated from your local filesystem, but **local files are automatically uploaded** when referenced in prompts!

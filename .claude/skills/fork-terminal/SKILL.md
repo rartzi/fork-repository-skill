@@ -74,6 +74,7 @@ The fork_terminal tool supports an optional auto-close feature:
   - Executes in isolated cloud VM
   - More secure than local execution
   - Use for experimental or untrusted code
+  - **Hybrid CLI/API Execution**: Sandbox automatically uses real CLI tools when available (Claude Code, Gemini, Codex installed via npm), falls back to Python APIs if CLIs are not found
   - **Automatic File Upload**: Local files referenced in prompts are automatically detected, uploaded to the sandbox, and made available to the agent
     - Supports common file types: `.md`, `.py`, `.js`, `.json`, `.yaml`, `.txt`, `.csv`, etc.
     - Files are uploaded to `/home/user/` in the sandbox

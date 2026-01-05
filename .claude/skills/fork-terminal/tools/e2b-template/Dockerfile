@@ -20,25 +20,29 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python API libraries for AI agents
-# These provide programmatic access to the AI services
+# Install Python API libraries for AI agents (fallback when CLIs unavailable)
 RUN pip3 install --no-cache-dir \
-    anthropic \
-    google-genai \
-    openai
+    anthropic>=0.39.0 \
+    google-genai>=0.1.0 \
+    openai>=1.0.0
 
-# Note: CLI tools for Claude Code, Gemini, and Codex
-# These are typically installed per-user and may require different approaches
-# For now, we ensure the Python APIs are available for programmatic access
+# Install REAL CLI tools via npm
+# Claude Code (official CLI from Anthropic)
+RUN npm install -g @anthropic-ai/claude-code || \
+    echo "⚠️  Claude Code CLI installation failed, will use Python API fallback"
 
-# Create wrapper scripts that can use either CLI or API
-# These wrappers will check for CLI tools and fall back to API if needed
+# Gemini CLI (official CLI from Google)
+RUN npm install -g @google/genai || \
+    pip3 install google-genai || \
+    echo "⚠️  Gemini CLI installation failed, will use Python API fallback"
 
-COPY wrapper-scripts/claude /usr/local/bin/claude
-COPY wrapper-scripts/gemini /usr/local/bin/gemini
-COPY wrapper-scripts/codex /usr/local/bin/codex
+# Codex CLI (official CLI from OpenAI)
+RUN npm install -g @openai/codex || \
+    echo "⚠️  Codex CLI installation failed, will use Python API fallback"
 
-RUN chmod +x /usr/local/bin/claude /usr/local/bin/gemini /usr/local/bin/codex
+# Note: Wrapper scripts removed - using real CLIs installed above
+# The sandbox_backend.py will check CLI availability at runtime
+# and fall back to Python APIs if CLIs are not available
 
 # Set working directory
 WORKDIR /home/user
