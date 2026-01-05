@@ -70,7 +70,7 @@ Each agentic tool supports model selection:
 
 ## Auto-Close Feature
 
-The fork terminal skill supports an **auto-close** feature that automatically closes the terminal window/tab after the command completes. This is useful for quick tasks where you don't need to keep the terminal open.
+The fork terminal skill supports an **auto-close** feature that executes commands in the background and captures their output. This is useful for quick tasks where you don't need to keep a terminal window open.
 
 ### Usage
 
@@ -87,18 +87,18 @@ Add `auto-close` or `--auto-close` anywhere in your command:
 "fork terminal --auto-close use gemini to create hello.py"
 ```
 
-### Behavior by Platform
+### Behavior
 
-| Platform    | Behavior                                                                 |
-| ----------- | ------------------------------------------------------------------------ |
-| **macOS**   | Creates terminal tab, waits for command completion, closes entire window |
-| **Windows** | Uses `/c` flag to close window after command completion                 |
+| Mode | Behavior |
+|------|----------|
+| **With auto-close** | Command runs directly in background, output is captured and returned immediately. No terminal window is opened. |
+| **Without auto-close** | Opens a new terminal window/tab that remains open for interactive use. |
 
 ### Interactive Mode Handling
 
 When auto-close is used with agentic coding tools (Claude Code, Codex CLI, Gemini CLI):
-- **With auto-close**: Tools run in **non-interactive mode** (using `-p` flag) so the command exits after completion, allowing the terminal to close automatically
-- **Without auto-close**: Tools run in **interactive mode** (default) to keep the session open for continued interaction
+- **With auto-close**: Tools run in **non-interactive mode** to ensure the command exits after completion and output is captured
+- **Without auto-close**: Tools run in **interactive mode** in a new terminal window for continued interaction
 
 ### Examples
 

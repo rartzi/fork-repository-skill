@@ -116,7 +116,8 @@ class SandboxBackend:
 
         # Pattern 1: Common file extensions
         file_patterns = [
-            r'\b([a-zA-Z0-9_\-/.]+\.(?:md|py|js|ts|tsx|jsx|json|yaml|yml|txt|csv|html|css|sh|bash))\b',
+            r'(\.[a-zA-Z0-9_\-/]+\.(?:md|py|js|ts|tsx|jsx|json|yaml|yml|txt|csv|html|css|sh|bash))\b',  # Paths starting with .
+            r'\b([a-zA-Z0-9_\-/]+\.(?:md|py|js|ts|tsx|jsx|json|yaml|yml|txt|csv|html|css|sh|bash))\b',  # Regular paths
             r'\b([A-Z][A-Z0-9_]+\.md)\b',  # UPPERCASE.md files like SKILL.MD, README.MD
             r'\b(my\s+)?([a-zA-Z0-9_\-]+\.[a-zA-Z0-9]+)\b',  # "my file.txt" pattern
         ]
@@ -366,12 +367,6 @@ class SandboxBackend:
 
         if self.verbose:
             print(f"\n🔨 Creating E2B sandbox for {agent}...")
-            if self.template_id:
-                print(f"📦 Using custom template: {self.template_id}")
-            else:
-                print(f"⚠️  Using base template (AI CLIs via wrappers)")
-                print(f"💡 Build custom template for better performance:")
-                print(f"   cd .claude/skills/fork-terminal/tools/e2b-template && ./build.sh")
 
         try:
             # Set E2B API key as environment variable (required by E2B SDK)
@@ -431,7 +426,13 @@ class SandboxBackend:
                 # CLI command: execute directly with environment variable
                 if self.verbose:
                     print(f"🚀 Executing CLI: {command}\n")
-                exec_command = f"export {env_var_name}='{safe_credential}' && {command}"
+
+                # For Codex, export both CODEX_API_KEY and OPENAI_API_KEY
+                # (CLI expects CODEX_API_KEY, but user might have OPENAI_API_KEY)
+                if agent == "codex":
+                    exec_command = f"export CODEX_API_KEY='{safe_credential}' && export OPENAI_API_KEY='{safe_credential}' && {command}"
+                else:
+                    exec_command = f"export {env_var_name}='{safe_credential}' && {command}"
             else:
                 # Python API command: write script to file and execute
                 if self.verbose:
@@ -447,7 +448,8 @@ class SandboxBackend:
                 sandbox.files.write("/tmp/ai_agent.py", script_content)
                 exec_command = f"export {env_var_name}='{safe_credential}' && python3 /tmp/ai_agent.py"
 
-            result = sandbox.commands.run(exec_command)
+            # Execute with 5 minute timeout (AI agents can take time to respond)
+            result = sandbox.commands.run(exec_command, timeout=300)
 
             # Get command result
             output = result.stdout if hasattr(result, 'stdout') else ""
@@ -573,15 +575,15 @@ class SandboxBackend:
 
         elif agent == "gemini":
             model_flag = f"--model {model}" if model else ""
-            # Gemini CLI: gemini -p "prompt"
-            # Note: Exact syntax may need verification
-            return f"gemini -p '{safe_prompt}' {model_flag}".strip()
+            # Gemini CLI: gemini -y -p "prompt"
+            # Note: -y (--yolo) flag required, -p flag deprecated but shows actual output
+            return f"gemini -y -p '{safe_prompt}' {model_flag}".strip()
 
         elif agent == "codex":
-            model_flag = f"--model {model}" if model else ""
-            # Codex CLI: codex -p "prompt"
-            # Note: May not support non-interactive mode, will fallback to API
-            return f"codex -p '{safe_prompt}' {model_flag}".strip()
+            # Codex CLI non-interactive mode: codex exec "prompt"
+            # Use --full-auto for file modifications, --sandbox danger-full-access for full access,
+            # and --skip-git-repo-check since sandbox may not have git repo
+            return f"codex exec --full-auto --sandbox danger-full-access --skip-git-repo-check '{safe_prompt}'".strip()
 
         else:
             raise ValueError(f"CLI not supported for agent: {agent}")
