@@ -40,6 +40,32 @@ Tests the priority-based credential discovery system:
 | E2B SDK Import | ✅ PASS | Sandbox class loaded |
 | Template Support | ℹ️ INFO | Using base template (runtime install) |
 
+### ✅ TEST 2.5: CLI Availability in E2B Sandbox (NEW!)
+
+Tests which real CLI tools are installed in the E2B sandbox:
+
+| CLI Tool | Installation Status | Execution Method |
+|----------|---------------------|------------------|
+| **Claude Code CLI** | ⏳ Pending | To be verified on first run |
+| **Gemini CLI** | ⏳ Pending | To be verified on first run |
+| **Codex CLI** | ⏳ Pending | To be verified on first run |
+
+**How It Works:**
+1. Creates temporary E2B sandbox
+2. Runs `which <cli>` for each tool
+3. Reports which CLIs are installed
+4. Falls back to Python API for unavailable CLIs
+
+**Expected Behavior:**
+- With custom E2B template: All 3 CLIs installed ✓
+- With base template: Python API fallback for all ✓
+- Execution always succeeds (CLI or API)
+
+**Benefits:**
+- Verifies Dockerfile CLI installations
+- Confirms hybrid fallback mechanism
+- Shows transparent CLI/API switching
+
 ### ✅ TEST 3: E2B Sandbox Execution
 
 #### Gemini in E2B Sandbox ✅
