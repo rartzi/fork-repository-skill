@@ -67,11 +67,18 @@ The fork_terminal tool supports an optional auto-close feature:
   - "fork terminal use gemini in sandbox to <xyz>"
   - "fork terminal use claude in sandbox to <xyz> auto-close"
   - "create a new terminal with codex in sandbox to <xyz>"
+  - "fork terminal use gemini in sandbox to analyze my config.yaml"
+  - "fork terminal use codex in sandbox to review my code.py"
 - NOTES:
   - Requires E2B_API_KEY credential
   - Executes in isolated cloud VM
   - More secure than local execution
   - Use for experimental or untrusted code
+  - **Automatic File Upload**: Local files referenced in prompts are automatically detected, uploaded to the sandbox, and made available to the agent
+    - Supports common file types: `.md`, `.py`, `.js`, `.json`, `.yaml`, `.txt`, `.csv`, etc.
+    - Files are uploaded to `/home/user/` in the sandbox
+    - File contents are injected into the agent's prompt for analysis
+    - Works transparently - just reference files naturally in your prompt
 
 ### Raw CLI Commands
 

@@ -158,6 +158,36 @@ Execute AI agents in isolated E2B cloud sandboxes for secure, scalable deploymen
    - .env file
    - Config files (~/.config/<tool>/credentials.json)
 
+### Automatic File Upload
+
+Sandboxes are isolated from your local filesystem, but **local files are automatically uploaded** when referenced in prompts!
+
+**How It Works**:
+- The system detects file references in your prompt (e.g., "my config.yaml", "SKILL.md", "data.csv")
+- Files are automatically uploaded to `/home/user/` in the sandbox
+- File contents are injected into the agent's prompt for analysis
+- Works transparently - just reference files naturally!
+
+**Supported File Types**:
+- Common extensions: `.md`, `.py`, `.js`, `.ts`, `.json`, `.yaml`, `.txt`, `.csv`, `.html`, `.css`, `.sh`, etc.
+- Uppercase files: `SKILL.MD`, `README.MD`
+- Natural language: "my config.yaml", "the data.csv"
+
+**File Upload Examples**:
+```bash
+# Analyze a local file in sandbox
+"fork terminal use gemini in sandbox to analyze my config.yaml"
+
+# Review local code safely
+"fork terminal use claude in sandbox to review my script.py"
+
+# Process local data
+"fork terminal use codex in sandbox to summarize data.csv"
+
+# Multi-file analysis
+"fork terminal use gemini in sandbox to compare settings.json with defaults.json"
+```
+
 ### Sandbox Examples
 
 **Basic Sandbox Execution**:
@@ -225,8 +255,9 @@ The sandbox backend uses **waterfall credential resolution**:
 | **Speed** | Instant | Network latency (~2-5s) |
 | **Cost** | Free | E2B service costs |
 | **Security** | Full system access | Isolated VM |
-| **Filesystem** | Your local files | Isolated sandbox |
+| **Filesystem** | Direct access to all local files | Isolated (auto-upload on reference) |
 | **Credentials** | All local credentials | Only injected credential |
+| **File Upload** | N/A (direct access) | Automatic when files referenced |
 | **Use Case** | Trusted, fast tasks | Experimental, risky tasks |
 
 ## Usage Examples

@@ -23,7 +23,7 @@ except ImportError:
     SandboxBackend = None
 
 
-def _execute_in_sandbox(agent: str, command: str, auto_close: bool) -> str:
+def _execute_in_sandbox(agent: str, command: str, auto_close: bool, working_dir: str = None) -> str:
     """
     Execute an AI agent in E2B sandbox
 
@@ -31,6 +31,7 @@ def _execute_in_sandbox(agent: str, command: str, auto_close: bool) -> str:
         agent: Agent name ("claude", "gemini", "codex")
         command: The command/prompt
         auto_close: Close sandbox after execution
+        working_dir: Working directory for file resolution
 
     Returns:
         Execution result string
@@ -51,7 +52,12 @@ def _execute_in_sandbox(agent: str, command: str, auto_close: bool) -> str:
         print(f"\n📦 Executing {agent} in E2B sandbox...")
         print(f"💬 Prompt: {prompt}\n")
 
-        result = backend.execute_agent(agent, prompt, auto_close=auto_close)
+        result = backend.execute_agent(
+            agent,
+            prompt,
+            auto_close=auto_close,
+            working_dir=working_dir
+        )
 
         if result["success"]:
             output_msg = f"✅ Sandbox execution completed\n"
@@ -155,7 +161,7 @@ def fork_terminal(command: str) -> str:
                 "Example: 'use gemini in sandbox to create hello.py'"
             )
 
-        return _execute_in_sandbox(agent, command, auto_close)
+        return _execute_in_sandbox(agent, command, auto_close, working_dir=cwd)
 
     # Continue with local terminal execution (existing logic)
 

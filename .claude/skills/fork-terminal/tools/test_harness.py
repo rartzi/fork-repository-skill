@@ -250,9 +250,99 @@ class TestHarness:
             self.print_test("Local Terminal Fork", "FAIL", str(e))
             self.record_result("local_fork", False, str(e))
 
+    def test_sandbox_file_upload(self):
+        """Test file upload to E2B sandbox"""
+        self.print_header("TEST 5: E2B Sandbox File Upload")
+
+        # Check if credentials are available
+        try:
+            self.resolver.get_credential("gemini", verbose=False)
+            self.resolver.get_credential("e2b", verbose=False)
+        except CredentialNotFoundError:
+            self.print_test(
+                "Sandbox File Upload",
+                "SKIP",
+                "Missing credentials"
+            )
+            self.record_result("sandbox_file_upload", False, "Missing credentials")
+            return
+
+        print(f"\n🧪 Testing file upload to E2B sandbox...")
+
+        # Create a test file
+        test_file_path = Path(__file__).parent.parent / "SKILL.md"
+
+        if not test_file_path.exists():
+            self.print_test(
+                "Sandbox File Upload",
+                "SKIP",
+                f"Test file not found: {test_file_path}"
+            )
+            self.record_result("sandbox_file_upload", False, "Test file not found")
+            return
+
+        print(f"   Test file: {test_file_path.name} ({test_file_path.stat().st_size} bytes)")
+        print(f"   Prompt: 'analyze my SKILL.md file and tell me what this skill does in one sentence'")
+
+        try:
+            backend = SandboxBackend(verbose=True)
+            result = backend.execute_agent(
+                agent="gemini",
+                prompt="analyze my SKILL.md file and tell me what this skill does in one sentence",
+                auto_close=True,
+                working_dir=str(test_file_path.parent)
+            )
+
+            if result["success"] and result["output"]:
+                # Check if the output mentions fork or terminal (indicating it read the file)
+                output_lower = result["output"].lower()
+                if "fork" in output_lower or "terminal" in output_lower or "skill" in output_lower:
+                    self.print_test(
+                        "Sandbox File Upload",
+                        "PASS",
+                        f"File uploaded and analyzed successfully"
+                    )
+                    print(f"\n   📝 Analysis result (truncated):")
+                    print(f"   {result['output'][:200]}...")
+                    self.record_result(
+                        "sandbox_file_upload",
+                        True,
+                        "File upload and content reading verified"
+                    )
+                else:
+                    self.print_test(
+                        "Sandbox File Upload",
+                        "FAIL",
+                        "Agent didn't appear to read file content"
+                    )
+                    self.record_result(
+                        "sandbox_file_upload",
+                        False,
+                        "File content not read correctly"
+                    )
+            else:
+                self.print_test(
+                    "Sandbox File Upload",
+                    "FAIL",
+                    result.get("error", "No output from agent")
+                )
+                self.record_result(
+                    "sandbox_file_upload",
+                    False,
+                    result.get("error", "No output")
+                )
+
+        except Exception as e:
+            self.print_test(
+                "Sandbox File Upload",
+                "FAIL",
+                str(e)
+            )
+            self.record_result("sandbox_file_upload", False, str(e))
+
     def test_fork_terminal_integration(self):
         """Test fork_terminal.py integration"""
-        self.print_header("TEST 5: Fork Terminal Integration")
+        self.print_header("TEST 6: Fork Terminal Integration")
 
         from fork_terminal import detect_backend, detect_agent
 
@@ -348,7 +438,10 @@ class TestHarness:
         else:
             print("\n⏭️  Skipping local terminal tests (--skip-local)")
 
-        # Test 5: Integration
+        # Test 5: Sandbox File Upload
+        self.test_sandbox_file_upload()
+
+        # Test 6: Integration
         self.test_fork_terminal_integration()
 
         # Summary
