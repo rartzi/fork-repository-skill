@@ -138,6 +138,9 @@ cython_debug/
 # Temporary files
 temp/
 
+# Sandbox output files
+sandbox-output/
+
 # macOS
 .DS_Store
 

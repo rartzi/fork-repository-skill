@@ -340,9 +340,125 @@ class TestHarness:
             )
             self.record_result("sandbox_file_upload", False, str(e))
 
+    def test_sandbox_file_download(self):
+        """Test file download from E2B sandbox"""
+        self.print_header("TEST 6: E2B Sandbox File Download")
+
+        # Check if credentials are available
+        try:
+            self.resolver.get_credential("gemini", verbose=False)
+            self.resolver.get_credential("e2b", verbose=False)
+        except CredentialNotFoundError:
+            self.print_test(
+                "Sandbox File Download",
+                "SKIP",
+                "Missing credentials"
+            )
+            self.record_result("sandbox_file_download", False, "Missing credentials")
+            return
+
+        print(f"\n🧪 Testing file download from E2B sandbox...")
+        print(f"   Prompt: 'create a file /home/user/output/test-report.md with a summary'")
+
+        # Clean up any existing output directory
+        import shutil
+        output_dir = Path(__file__).parent.parent.parent.parent / "sandbox-output"
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
+
+        try:
+            backend = SandboxBackend(verbose=True)
+            result = backend.execute_agent(
+                agent="gemini",
+                prompt="create a markdown file at /home/user/output/test-report.md with the content: '# Test Report\\nThis file was created by Gemini in an E2B sandbox.\\n\\n## Status\\nFile download test successful!'",
+                auto_close=True,
+                download_output=True,
+                output_dir=str(output_dir)
+            )
+
+            if result["success"]:
+                # Check if files were downloaded
+                if result["downloaded_files"]:
+                    # Verify the file exists locally
+                    expected_file = output_dir / "test-report.md"
+                    if expected_file.exists():
+                        with open(expected_file) as f:
+                            content = f.read()
+
+                        if "Test Report" in content and "File download test successful" in content:
+                            self.print_test(
+                                "Sandbox File Download",
+                                "PASS",
+                                f"{len(result['downloaded_files'])} file(s) downloaded"
+                            )
+                            print(f"\n   📝 Downloaded file content (first 100 chars):")
+                            print(f"   {content[:100]}...")
+                            self.record_result(
+                                "sandbox_file_download",
+                                True,
+                                f"Downloaded {len(result['downloaded_files'])} files"
+                            )
+                        else:
+                            self.print_test(
+                                "Sandbox File Download",
+                                "FAIL",
+                                "File downloaded but content is incorrect"
+                            )
+                            self.record_result(
+                                "sandbox_file_download",
+                                False,
+                                "Incorrect file content"
+                            )
+                    else:
+                        self.print_test(
+                            "Sandbox File Download",
+                            "FAIL",
+                            f"Downloaded file not found at {expected_file}"
+                        )
+                        self.record_result(
+                            "sandbox_file_download",
+                            False,
+                            "File not found locally"
+                        )
+                else:
+                    self.print_test(
+                        "Sandbox File Download",
+                        "FAIL",
+                        "No files were downloaded"
+                    )
+                    self.record_result(
+                        "sandbox_file_download",
+                        False,
+                        "No files downloaded"
+                    )
+            else:
+                self.print_test(
+                    "Sandbox File Download",
+                    "FAIL",
+                    result.get("error", "Execution failed")
+                )
+                self.record_result(
+                    "sandbox_file_download",
+                    False,
+                    result.get("error", "Execution failed")
+                )
+
+        except Exception as e:
+            self.print_test(
+                "Sandbox File Download",
+                "FAIL",
+                str(e)
+            )
+            self.record_result("sandbox_file_download", False, str(e))
+
+        finally:
+            # Cleanup test output directory
+            if output_dir.exists():
+                shutil.rmtree(output_dir)
+
     def test_fork_terminal_integration(self):
         """Test fork_terminal.py integration"""
-        self.print_header("TEST 6: Fork Terminal Integration")
+        self.print_header("TEST 7: Fork Terminal Integration")
 
         from fork_terminal import detect_backend, detect_agent
 
@@ -441,7 +557,10 @@ class TestHarness:
         # Test 5: Sandbox File Upload
         self.test_sandbox_file_upload()
 
-        # Test 6: Integration
+        # Test 6: Sandbox File Download
+        self.test_sandbox_file_download()
+
+        # Test 7: Integration
         self.test_fork_terminal_integration()
 
         # Summary

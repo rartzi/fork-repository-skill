@@ -79,6 +79,11 @@ The fork_terminal tool supports an optional auto-close feature:
     - Files are uploaded to `/home/user/` in the sandbox
     - File contents are injected into the agent's prompt for analysis
     - Works transparently - just reference files naturally in your prompt
+  - **Automatic File Download**: Files created by agents in `/home/user/output/` are automatically downloaded after execution
+    - Downloaded to `./sandbox-output/` by default (configurable)
+    - Directory structure is preserved
+    - Works for reports, code, images, data files, etc.
+    - Agents should write output files to `/home/user/output/` for automatic retrieval
 
 ### Raw CLI Commands
 

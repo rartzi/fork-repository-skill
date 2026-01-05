@@ -188,6 +188,62 @@ Sandboxes are isolated from your local filesystem, but **local files are automat
 "fork terminal use gemini in sandbox to compare settings.json with defaults.json"
 ```
 
+### Automatic File Download
+
+Agents running in sandboxes can create files, and **those files are automatically downloaded** back to your local machine!
+
+**How It Works**:
+- Agents write output files to `/home/user/output/` in the sandbox
+- After execution, files are automatically downloaded to `./sandbox-output/` locally
+- Directory structure is preserved
+- Works for any file type: reports, code, images, data, etc.
+
+**Output Directory Convention**:
+When prompting agents, instruct them to save files to `/home/user/output/`:
+
+```bash
+# Generate a report that gets downloaded automatically
+"fork terminal use gemini in sandbox to analyze data.csv and save report to /home/user/output/analysis.md"
+
+# Create code that's downloaded locally
+"fork terminal use claude in sandbox to implement the feature and save to /home/user/output/feature.py"
+
+# Generate multiple files
+"fork terminal use codex in sandbox to create tests and save to /home/user/output/test_*.py"
+```
+
+**What Gets Downloaded**:
+- ✅ Reports (`.md`, `.txt`, `.pdf`)
+- ✅ Code files (`.py`, `.js`, `.ts`, etc.)
+- ✅ Data files (`.json`, `.csv`, `.yaml`)
+- ✅ Images (`.png`, `.jpg`, `.svg`)
+- ✅ Any file in `/home/user/output/` directory
+
+**Where Files Are Saved Locally**:
+```
+./sandbox-output/          # Default local directory
+├── analysis.md           # Downloaded files
+├── feature.py
+└── tests/
+    ├── test_auth.py
+    └── test_api.py
+```
+
+**File Download Examples**:
+```bash
+# Generate and download a report
+"fork terminal use gemini in sandbox to create a project summary and save to /home/user/output/summary.md"
+
+# Create and download code
+"fork terminal use claude in sandbox to implement the calculator class and save to /home/user/output/calculator.py"
+
+# Process data and download results
+"fork terminal use codex in sandbox to analyze sales.csv and save charts to /home/user/output/charts/"
+
+# Generate documentation
+"fork terminal use gemini in sandbox to document my API and save to /home/user/output/api-docs.md"
+```
+
 ### Sandbox Examples
 
 **Basic Sandbox Execution**:
@@ -255,9 +311,11 @@ The sandbox backend uses **waterfall credential resolution**:
 | **Speed** | Instant | Network latency (~2-5s) |
 | **Cost** | Free | E2B service costs |
 | **Security** | Full system access | Isolated VM |
-| **Filesystem** | Direct access to all local files | Isolated (auto-upload on reference) |
+| **Filesystem** | Direct access to all local files | Isolated (auto-upload/download) |
 | **Credentials** | All local credentials | Only injected credential |
 | **File Upload** | N/A (direct access) | Automatic when files referenced |
+| **File Download** | N/A (writes directly) | Automatic from `/home/user/output/` |
+| **Output Location** | Current directory | `./sandbox-output/` locally |
 | **Use Case** | Trusted, fast tasks | Experimental, risky tasks |
 
 ## Usage Examples

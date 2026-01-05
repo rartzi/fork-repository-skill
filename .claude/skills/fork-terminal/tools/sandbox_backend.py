@@ -169,13 +169,92 @@ class SandboxBackend:
 
         return rewritten
 
+    def _download_output_files(self, sandbox, output_dir: str) -> List[str]:
+        """
+        Download output files from sandbox to local directory
+
+        Args:
+            sandbox: E2B sandbox instance
+            output_dir: Local directory to save files
+
+        Returns:
+            List of local file paths that were downloaded
+        """
+        downloaded_files = []
+        sandbox_output_dir = "/home/user/output"
+
+        try:
+            # Check if output directory exists in sandbox
+            result = sandbox.commands.run(f"test -d {sandbox_output_dir} && echo exists || echo missing")
+            if "missing" in result.stdout:
+                if self.verbose:
+                    print(f"ℹ️  No output directory in sandbox ({sandbox_output_dir})")
+                return downloaded_files
+
+            # List all files in output directory recursively
+            result = sandbox.commands.run(f"find {sandbox_output_dir} -type f")
+            if result.exit_code != 0 or not result.stdout.strip():
+                if self.verbose:
+                    print(f"ℹ️  No files in sandbox output directory")
+                return downloaded_files
+
+            file_paths = result.stdout.strip().split('\n')
+
+            # Create local output directory
+            local_output_path = Path(output_dir)
+            local_output_path.mkdir(parents=True, exist_ok=True)
+
+            if self.verbose:
+                print(f"\n📥 Downloading {len(file_paths)} file(s) from sandbox...")
+
+            # Download each file
+            for sandbox_file_path in file_paths:
+                sandbox_file_path = sandbox_file_path.strip()
+                if not sandbox_file_path:
+                    continue
+
+                try:
+                    # Get relative path from /home/user/output/
+                    relative_path = sandbox_file_path.replace(f"{sandbox_output_dir}/", "")
+
+                    # Create local file path
+                    local_file_path = local_output_path / relative_path
+                    local_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+                    # Read file content from sandbox
+                    content = sandbox.files.read(sandbox_file_path)
+
+                    # Write to local file
+                    with open(local_file_path, 'w') as f:
+                        f.write(content)
+
+                    downloaded_files.append(str(local_file_path))
+
+                    if self.verbose:
+                        print(f"   ✓ {sandbox_file_path} → {local_file_path}")
+
+                except Exception as e:
+                    if self.verbose:
+                        print(f"   ⚠️  Failed to download {sandbox_file_path}: {e}")
+
+            if self.verbose and downloaded_files:
+                print(f"\n✅ Downloaded {len(downloaded_files)} file(s) to {output_dir}/")
+
+        except Exception as e:
+            if self.verbose:
+                print(f"⚠️  Error during file download: {e}")
+
+        return downloaded_files
+
     def execute_agent(
         self,
         agent: str,
         prompt: str,
         auto_close: bool = False,
         model: Optional[str] = None,
-        working_dir: Optional[str] = None
+        working_dir: Optional[str] = None,
+        download_output: bool = True,
+        output_dir: str = "./sandbox-output"
     ) -> dict:
         """
         Execute an AI agent in an isolated E2B sandbox
@@ -186,6 +265,8 @@ class SandboxBackend:
             auto_close: Close sandbox after execution
             model: Optional model override
             working_dir: Working directory to resolve file paths (defaults to cwd)
+            download_output: Download files from /home/user/output/ after execution (default: True)
+            output_dir: Local directory to save downloaded files (default: ./sandbox-output)
 
         Returns:
             Dictionary with execution results:
@@ -193,7 +274,8 @@ class SandboxBackend:
                 "success": bool,
                 "output": str,
                 "error": Optional[str],
-                "sandbox_id": str
+                "sandbox_id": str,
+                "downloaded_files": List[str]  # Local paths of downloaded files
             }
 
         Raises:
@@ -208,7 +290,8 @@ class SandboxBackend:
                 "success": False,
                 "output": "",
                 "error": str(e),
-                "sandbox_id": None
+                "sandbox_id": None,
+                "downloaded_files": []
             }
 
         # Detect file references in prompt
@@ -302,6 +385,11 @@ class SandboxBackend:
                     print(f"\n[Error]\n{error}")
                 print(f"\nExit code: {exit_code}")
 
+            # Download output files if enabled
+            downloaded_files = []
+            if download_output:
+                downloaded_files = self._download_output_files(sandbox, output_dir)
+
             # Kill sandbox if auto-close enabled
             if auto_close:
                 if self.verbose:
@@ -312,7 +400,8 @@ class SandboxBackend:
                 "success": exit_code == 0,
                 "output": output,
                 "error": error,
-                "sandbox_id": sandbox.sandbox_id
+                "sandbox_id": sandbox.sandbox_id,
+                "downloaded_files": downloaded_files
             }
 
         except Exception as e:
@@ -320,7 +409,8 @@ class SandboxBackend:
                 "success": False,
                 "output": "",
                 "error": f"Sandbox execution failed: {str(e)}",
-                "sandbox_id": None
+                "sandbox_id": None,
+                "downloaded_files": []
             }
 
     def _build_agent_command(
