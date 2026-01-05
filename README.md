@@ -158,34 +158,41 @@ Execute AI agents in isolated E2B cloud sandboxes for secure, scalable deploymen
    - .env file
    - Config files (~/.config/<tool>/credentials.json)
 
-### Hybrid CLI/API Execution
+### E2B Template: Real CLIs Pre-Installed
 
-The E2B sandbox implementation uses a **hybrid approach** that tries to use real CLI tools first, with automatic fallback to Python APIs:
+The E2B sandbox uses a **custom template** with all AI agent CLIs pre-installed and ready to use!
 
-**How It Works**:
-1. When creating a sandbox, the system checks if real CLIs are installed:
-   - `claude` (Claude Code CLI from npm)
-   - `gemini` (Gemini CLI from npm)
-   - `codex` (Codex CLI from npm)
-2. If a CLI is available, it's used for authentic execution
-3. If a CLI is not found, it automatically falls back to Python APIs
-4. Verbose mode shows which approach is used for each execution
+**Template Details**:
+- **Template ID**: `whhe4zpvcrwa0ahyu559`
+- **Template Name**: `fork-terminal-ai-agents`
+- **Size**: ~723 MB
+- **Build Date**: 2026-01-05
+- **Status**: ✅ Production Ready
+
+**Pre-Installed CLIs**:
+- ✅ **Claude Code CLI** v2.0.76 at `/usr/bin/claude`
+- ✅ **Gemini CLI** v0.22.5 at `/usr/bin/gemini`
+- ✅ **Codex CLI** v0.77.0 at `/usr/bin/codex`
+- ✅ **Node.js** v20.19.6 (required for CLIs)
+- ✅ **Python 3.10** + pip
+
+**Hybrid Execution**:
+1. **Real CLI execution** (default): Uses the pre-installed CLIs for authentic behavior
+2. **Python API fallback**: Automatically falls back to Python APIs if CLI execution fails
+3. **Transparent switching**: You don't need to worry about which is used
 
 **Benefits**:
-- ✅ **Authentic CLI experience** when tools are available
-- ✅ **Reliable fallback** ensures execution always works
-- ✅ **Zero configuration** required - works out of the box
-- ✅ **Transparent switching** - you don't need to worry about it
+- ✅ **No runtime installation** - CLIs are ready instantly
+- ✅ **Faster startup** - No npm install delays
+- ✅ **Authentic CLI experience** - Same behavior as local execution
+- ✅ **Reliable fallback** - Python APIs ensure execution always works
+- ✅ **Zero configuration** - Works out of the box
 
-**CLI Installation** (Optional - for better performance):
-The Dockerfile attempts to install real CLIs via npm:
-```bash
-npm install -g @anthropic-ai/claude-code
-npm install -g @google/genai
-npm install -g @openai/codex
-```
-
-If installation fails, Python APIs are used automatically - no action needed!
+**Template Architecture**:
+- **Single unified template** serves both AI agents and raw CLI commands
+- AI agents (Claude/Gemini/Codex) use the installed CLIs
+- Raw commands (python, curl, git) use standard Linux tools
+- Future: Separate lightweight base template planned for raw CLI only (when needed)
 
 ### Automatic File Upload
 

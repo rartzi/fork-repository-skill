@@ -1,0 +1,15 @@
+# This is a config for E2B sandbox template.
+# You can use template ID (whhe4zpvcrwa0ahyu559) or template name (fork-terminal-ai-agents) to create a sandbox:
+
+# Python SDK
+# from e2b import Sandbox, AsyncSandbox
+# sandbox = Sandbox.create("fork-terminal-ai-agents") # Sync sandbox
+# sandbox = await AsyncSandbox.create("fork-terminal-ai-agents") # Async sandbox
+
+# JS SDK
+# import { Sandbox } from 'e2b'
+# const sandbox = await Sandbox.create('fork-terminal-ai-agents')
+
+dockerfile = "Dockerfile"
+template_name = "fork-terminal-ai-agents"
+template_id = "whhe4zpvcrwa0ahyu559"

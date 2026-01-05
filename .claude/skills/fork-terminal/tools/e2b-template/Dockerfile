@@ -15,10 +15,13 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
-    nodejs \
-    npm \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20.x (required for CLIs)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install Python API libraries for AI agents (fallback when CLIs unavailable)
 RUN pip3 install --no-cache-dir \
@@ -32,8 +35,7 @@ RUN npm install -g @anthropic-ai/claude-code || \
     echo "⚠️  Claude Code CLI installation failed, will use Python API fallback"
 
 # Gemini CLI (official CLI from Google)
-RUN npm install -g @google/genai || \
-    pip3 install google-genai || \
+RUN npm install -g @google/gemini-cli || \
     echo "⚠️  Gemini CLI installation failed, will use Python API fallback"
 
 # Codex CLI (official CLI from OpenAI)

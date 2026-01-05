@@ -17,6 +17,8 @@ ENABLE_CLAUDE_CODE: true
 ENABLE_E2B_SANDBOX: true
 AGENTIC_CODING_TOOLS: claude-code, codex-cli, gemini-cli
 BACKENDS: local, e2b-sandbox
+E2B_TEMPLATE_ID: whhe4zpvcrwa0ahyu559
+E2B_TEMPLATE_NAME: fork-terminal-ai-agents
 
 ## Instructions
 
@@ -69,12 +71,26 @@ The fork_terminal tool supports an optional auto-close feature:
   - "create a new terminal with codex in sandbox to <xyz>"
   - "fork terminal use gemini in sandbox to analyze my config.yaml"
   - "fork terminal use codex in sandbox to review my code.py"
+  - "fork terminal in sandbox: python script.py" (raw CLI, uses same template)
 - NOTES:
+  - **E2B Template**: Uses custom template `fork-terminal-ai-agents` (whhe4zpvcrwa0ahyu559)
+  - **Template Size**: ~723 MB (includes all CLIs and dependencies)
+  - **Template Build Date**: 2026-01-05
   - Requires E2B_API_KEY credential
   - Executes in isolated cloud VM
   - More secure than local execution
   - Use for experimental or untrusted code
-  - **Hybrid CLI/API Execution**: Sandbox automatically uses real CLI tools when available (Claude Code, Gemini, Codex installed via npm), falls back to Python APIs if CLIs are not found
+  - **Real CLIs Installed**:
+    - Claude Code CLI v2.0.76 at `/usr/bin/claude`
+    - Gemini CLI v0.22.5 at `/usr/bin/gemini`
+    - Codex CLI v0.77.0 at `/usr/bin/codex`
+    - Node.js v20.19.6 (required for CLIs)
+    - Python 3.10 + pip
+  - **Hybrid CLI/API Execution**: Sandbox uses real CLI tools by default, falls back to Python APIs if CLIs fail or are unavailable
+  - **Template Architecture**: Single unified template serves both AI agents and raw CLI commands
+    - AI agents (Claude/Gemini/Codex): Use installed CLIs
+    - Raw commands (python, curl, git): Use standard tools
+    - Future: Separate lightweight base template planned for raw CLI only
   - **Automatic File Upload**: Local files referenced in prompts are automatically detected, uploaded to the sandbox, and made available to the agent
     - Supports common file types: `.md`, `.py`, `.js`, `.json`, `.yaml`, `.txt`, `.csv`, etc.
     - Files are uploaded to `/home/user/` in the sandbox
