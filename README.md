@@ -1,13 +1,13 @@
 # Fork Terminal Skill
-> A simple skill you can use to fork your agentic coding tools to a new terminal window.
+> A simple skill you can use to fork your agentic coding tools to different execution environments—either a new local terminal window or an isolated cloud sandbox.
 >
-> Why? To offload context (delegate), to branch work, to parallelize work, to run the same command against different tools + models, and more.
+> Why? To offload context (delegate), to branch work, to parallelize work, to run experimental code securely, to run the same command against different tools + models, and more.
 >
 > Check out this [YouTube video](https://youtu.be/X2ciJedw2vU) where we build this skill from scratch.
 
 <img src="images/fork-terminal.png" alt="Fork Terminal Skill" width="800">
 
-A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill that enables AI agents to spawn new terminal windows on demand. This skill extends Claude Code's capabilities to launch additional terminal sessions—including other AI coding assistants like Claude Code, Codex CLI, and Gemini CLI—in parallel terminals.
+A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill that enables AI agents to spawn new execution environments on demand. This skill extends Claude Code's capabilities to launch additional sessions—including other AI coding assistants like Claude Code, Codex CLI, and Gemini CLI—in either local terminal windows or isolated E2B cloud sandboxes.
 
 ## Requirements
 
