@@ -3,7 +3,7 @@
 >
 > Why? To offload context (delegate), to branch work, to parallelize work, to run experimental code securely, to run the same command against different tools + models, and more.
 >
-> Check out this [YouTube video](https://youtu.be/X2ciJedw2vU) where we build this skill from scratch.
+> Inspired by [IndyDevDan's original video](https://youtu.be/X2ciJedw2vU), we forked and extended this skill with E2B sandbox execution, auto-close with output capture, and multi-CLI support.
 
 <img src="images/fork-terminal.png" alt="Fork Terminal Skill" width="800">
 
