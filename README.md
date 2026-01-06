@@ -467,11 +467,17 @@ These examples demonstrate usage patterns for other projects.
 │   ├── cli-command.md          # Raw CLI instructions
 │   ├── claude-code.md          # Claude Code agent instructions
 │   ├── codex-cli.md            # Codex CLI instructions
-│   └── gemini-cli.md           # Gemini CLI instructions
+│   ├── gemini-cli.md           # Gemini CLI instructions
+│   └── e2b-sandbox.md          # E2B sandbox execution instructions
 ├── prompts/
 │   └── fork_summary_user_prompt.md  # Template for context handoff
 └── tools/
-    └── fork_terminal.py        # Cross-platform terminal spawner
+    ├── fork_terminal.py        # Main execution router (local/sandbox)
+    ├── sandbox_backend.py      # E2B sandbox integration
+    ├── credential_resolver.py  # API key management (env/keychain/.env)
+    ├── e2b-template/           # E2B template with real CLIs (Claude/Gemini/Codex)
+    ├── e2b-template-base/      # Lightweight base template (planned)
+    └── .e2b_template_id        # Current template ID
 ```
 
 ## Platform Support
