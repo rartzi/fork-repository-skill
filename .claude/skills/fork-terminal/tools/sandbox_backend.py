@@ -311,10 +311,10 @@ class SandboxBackend:
 
         return downloaded_files
 
-    def execute_agent(
+    def execute(
         self,
-        agent: str,
         prompt: str,
+        agent: Optional[str] = None,
         auto_close: bool = False,
         model: Optional[str] = None,
         working_dir: Optional[str] = None,
@@ -322,173 +322,111 @@ class SandboxBackend:
         output_dir: str = "./sandbox-output"
     ) -> dict:
         """
-        Execute an AI agent in an isolated E2B sandbox
+        Execute a command or an AI agent in an isolated E2B sandbox.
 
         Args:
-            agent: Agent name ("claude", "gemini", "codex")
-            prompt: The prompt/task for the agent
-            auto_close: Close sandbox after execution
-            model: Optional model override
-            working_dir: Working directory to resolve file paths (defaults to cwd)
-            download_output: Download files from /home/user/output/ after execution (default: True)
-            output_dir: Local directory to save downloaded files (default: ./sandbox-output)
+            prompt: The prompt/task for the agent or the raw command to execute.
+            agent: Agent name ("claude", "gemini", "codex") or None for raw command.
+            auto_close: Close sandbox after execution.
+            model: Optional model override.
+            working_dir: Working directory to resolve file paths (defaults to cwd).
+            download_output: Download files from /home/user/output/ after execution (default: True).
+            output_dir: Local directory to save downloaded files (default: ./sandbox-output).
 
         Returns:
-            Dictionary with execution results:
-            {
-                "success": bool,
-                "output": str,
-                "error": Optional[str],
-                "sandbox_id": str,
-                "downloaded_files": List[str]  # Local paths of downloaded files
-            }
-
-        Raises:
-            CredentialNotFoundError: If required credentials not found
+            Dictionary with execution results.
         """
-        # Resolve credentials using waterfall
+        # Resolve E2B key
         try:
-            agent_credential = self.resolver.get_credential(agent, verbose=self.verbose)
             e2b_key = self.resolver.get_credential("e2b", verbose=self.verbose)
         except CredentialNotFoundError as e:
             return {
-                "success": False,
-                "output": "",
-                "error": str(e),
-                "sandbox_id": None,
-                "downloaded_files": []
+                "success": False, "output": "", "error": str(e),
+                "sandbox_id": None, "downloaded_files": []
             }
 
         # Detect file references in prompt
         file_refs = self._detect_file_references(prompt, working_dir)
-
         if file_refs and self.verbose:
             print(f"\n📁 Detected {len(file_refs)} local file(s) referenced in prompt")
 
         if self.verbose:
-            print(f"\n🔨 Creating E2B sandbox for {agent}...")
+            print(f"\n🔨 Creating E2B sandbox for {'agent ' + agent if agent else 'raw command'}...")
 
         try:
-            # Set E2B API key as environment variable (required by E2B SDK)
+            # Set E2B API key
             original_e2b_key = os.environ.get('E2B_API_KEY')
             os.environ['E2B_API_KEY'] = e2b_key
 
-            # Select appropriate template based on agent
+            # Select template
             template_id = self._select_template(agent=agent)
-
-            # Create sandbox with selected template
-            if template_id:
-                sandbox = self.Sandbox.create(template=template_id)
-            else:
-                # Use default E2B sandbox and install dependencies at runtime
-                sandbox = self.Sandbox.create()
-
-                if self.verbose:
-                    print("📦 Installing Python API libraries...")
-
-                # Install Python libraries for AI agents
-                install_cmd = "pip3 install -q anthropic google-genai openai"
-                sandbox.commands.run(install_cmd)
-
-                if self.verbose:
-                    print("✓ API libraries installed")
-
-            # Restore original E2B key if it existed
-            if original_e2b_key:
-                os.environ['E2B_API_KEY'] = original_e2b_key
-            elif 'E2B_API_KEY' in os.environ:
-                del os.environ['E2B_API_KEY']
+            sandbox = self.Sandbox.create(template=template_id) if template_id else self.Sandbox.create()
 
             if self.verbose:
                 print(f"✓ Sandbox created: {sandbox.sandbox_id}")
 
-            # Upload local files to sandbox if any were detected
-            path_mapping = {}
-            sandbox_file_paths = []
+            # Restore original E2B key
+            if original_e2b_key:
+                os.environ['E2B_API_KEY'] = original_e2b_key
+            elif 'E2B_API_KEY' in os.environ:
+                del os.environ['E2B_API_KEY']
+            
+            # Upload files
             if file_refs:
                 path_mapping = self._upload_files_to_sandbox(sandbox, file_refs)
-                # Rewrite prompt to use sandbox paths
                 prompt = self._rewrite_prompt_with_sandbox_paths(prompt, path_mapping)
-                # Collect sandbox file paths for reading in the agent command
                 sandbox_file_paths = [ref['sandbox_path'] for ref in file_refs]
+            else:
+                sandbox_file_paths = []
 
-            # Get agent-specific command (now with potentially rewritten prompt and file paths)
-            # Pass sandbox to enable CLI availability checking
-            command = self._build_agent_command(agent, prompt, model, auto_close, sandbox_file_paths, sandbox)
-
-            # Determine if this is a CLI command or Python API command
-            is_cli_command = not command.startswith('python3')
-
-            env_var_name = self.resolver.AGENT_KEY_MAP[agent]
-            safe_credential = agent_credential.replace("'", "'\\''")
-
-            if is_cli_command:
-                # CLI command: execute directly with environment variable
-                if self.verbose:
-                    print(f"🚀 Executing CLI: {command}\n")
-
-                # For Codex, export both CODEX_API_KEY and OPENAI_API_KEY
-                # (CLI expects CODEX_API_KEY, but user might have OPENAI_API_KEY)
+            # Build and execute command
+            if agent:
+                # Agentic execution
+                agent_credential = self.resolver.get_credential(agent, verbose=self.verbose)
+                command = self._build_agent_command(agent, prompt, model, auto_close, sandbox_file_paths, sandbox)
+                
+                env_var_name = self.resolver.AGENT_KEY_MAP[agent]
+                safe_credential = agent_credential.replace("'", "'\\''")
+                
                 if agent == "codex":
                     exec_command = f"export CODEX_API_KEY='{safe_credential}' && export OPENAI_API_KEY='{safe_credential}' && {command}"
                 else:
                     exec_command = f"export {env_var_name}='{safe_credential}' && {command}"
             else:
-                # Python API command: write script to file and execute
-                if self.verbose:
-                    print(f"🚀 Executing: python3 /tmp/ai_agent.py\n")
+                # Raw command execution
+                exec_command = prompt
 
-                # Extract Python code from shell command: python3 -c "CODE"
-                if command.startswith('python3 -c "') and command.endswith('"'):
-                    script_content = command[len('python3 -c "'):-1]
-                else:
-                    script_content = command
-
-                # Write script to temp file
-                sandbox.files.write("/tmp/ai_agent.py", script_content)
-                exec_command = f"export {env_var_name}='{safe_credential}' && python3 /tmp/ai_agent.py"
-
-            # Execute with 5 minute timeout (AI agents can take time to respond)
+            if self.verbose:
+                print(f"🚀 Executing: {exec_command}\n")
+            
             result = sandbox.commands.run(exec_command, timeout=300)
 
-            # Get command result
             output = result.stdout if hasattr(result, 'stdout') else ""
             error = result.stderr if hasattr(result, 'stderr') and result.stderr else None
             exit_code = result.exit_code if hasattr(result, 'exit_code') else 0
 
             if self.verbose:
-                if output:
-                    print(f"\n[Output]\n{output}")
-                if error:
-                    print(f"\n[Error]\n{error}")
+                if output: print(f"\n[Output]\n{output}")
+                if error: print(f"\n[Error]\n{error}")
                 print(f"\nExit code: {exit_code}")
 
-            # Download output files if enabled
-            downloaded_files = []
-            if download_output:
-                downloaded_files = self._download_output_files(sandbox, output_dir)
+            # Download output files
+            downloaded_files = self._download_output_files(sandbox, output_dir) if download_output else []
 
             # Kill sandbox if auto-close enabled
             if auto_close:
-                if self.verbose:
-                    print("\n🔒 Auto-closing sandbox...")
+                if self.verbose: print("\n🔒 Auto-closing sandbox...")
                 sandbox.kill()
 
             return {
-                "success": exit_code == 0,
-                "output": output,
-                "error": error,
-                "sandbox_id": sandbox.sandbox_id,
-                "downloaded_files": downloaded_files
+                "success": exit_code == 0, "output": output, "error": error,
+                "sandbox_id": sandbox.sandbox_id, "downloaded_files": downloaded_files
             }
 
         except Exception as e:
             return {
-                "success": False,
-                "output": "",
-                "error": f"Sandbox execution failed: {str(e)}",
-                "sandbox_id": None,
-                "downloaded_files": []
+                "success": False, "output": "", "error": f"Sandbox execution failed: {str(e)}",
+                "sandbox_id": None, "downloaded_files": []
             }
 
     def _check_cli_availability(self, agent: str, sandbox) -> bool:

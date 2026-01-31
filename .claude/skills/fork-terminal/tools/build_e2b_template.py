@@ -122,8 +122,8 @@ echo "  ✓ Python APIs: anthropic, google-generativeai, openai"
 
     print("\n📝 Running installation script in sandbox...\n")
 
-    # Write installation script to sandbox
-    sandbox.files.write("/tmp/install_agents.sh", install_script)
+    # Write installation script to sandbox (E2B sandbox /tmp is isolated)
+    sandbox.files.write("/tmp/install_agents.sh", install_script)  # nosec B108
 
     # Make it executable and run it
     result = sandbox.commands.run("chmod +x /tmp/install_agents.sh && /tmp/install_agents.sh")

@@ -271,8 +271,8 @@ class TestHarness:
         import subprocess
         import time
 
-        # Test file path
-        test_file = "/tmp/fork-terminal-test.txt"
+        # Test file path (using /tmp is fine for test artifacts)
+        test_file = "/tmp/fork-terminal-test.txt"  # nosec B108
 
         # Clean up any existing test file
         if os.path.exists(test_file):
