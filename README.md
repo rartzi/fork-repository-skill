@@ -1,9 +1,9 @@
 # Fork Terminal Skill
-> A simple skill you can use to fork your agentic coding tools to different execution environments—either a new local terminal window or an isolated cloud sandbox.
+> A simple skill you can use to fork your agentic coding tools to different execution environments—local terminal windows, isolated cloud sandboxes, or remote SSH-accessible machines like NVIDIA DGX workstations.
 >
-> Why? To offload context (delegate), to branch work, to parallelize work, to run experimental code securely, to run the same command against different tools + models, and more.
+> Why? To offload context (delegate), to branch work, to parallelize work, to run experimental code securely, to leverage remote GPU resources, to run the same command against different tools + models, and more.
 >
-> Inspired by [IndyDevDan's original video](https://youtu.be/X2ciJedw2vU), we forked and extended this skill with E2B sandbox execution, auto-close with output capture, and multi-CLI support.
+> Inspired by [IndyDevDan's original video](https://youtu.be/X2ciJedw2vU), we forked and extended this skill with E2B sandbox execution, SSH remote execution, auto-close with output capture, and multi-CLI support.
 
 <img src="images/fork-terminal.png" alt="Fork Terminal Skill" width="800">
 
@@ -19,6 +19,10 @@ A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill that enabl
 **Optional (for E2B Sandbox)**:
 - [E2B Account](https://e2b.dev/) - For isolated sandbox execution
 - Python dependencies: `pip install -r requirements.txt`
+
+**Optional (for SSH Remote Execution)**:
+- SSH access to remote machine (key-based authentication)
+- Python dependencies: `pip install paramiko pyyaml`
 
 ## What is a Claude Code Skill?
 
@@ -46,10 +50,16 @@ This is useful when you want Claude to delegate work to another agent running in
 |---------|-------------|----------|
 | **Local Terminal** | Spawns new terminal window on your machine | Fast, trusted tasks |
 | **E2B Sandbox** | Executes in isolated cloud VM | Secure, experimental, untrusted code |
+| **SSH Remote** | Executes on remote SSH-accessible machines | GPU workloads, heavy compute, DGX |
 
 Add `in sandbox` to any command to use E2B backend:
 ```bash
 "fork terminal use gemini in sandbox to test risky code"
+```
+
+Add `on <hostname>` to execute on a configured SSH host:
+```bash
+"fork terminal use claude on dgx to train the model"
 ```
 
 ## Supported Tools
@@ -60,6 +70,14 @@ Add `in sandbox` to any command to use E2B backend:
 | **Codex CLI**   | "fork terminal use codex to..."       | `gpt-5.1-codex-max`    | ✅ Yes          |
 | **Gemini CLI**  | "fork terminal use gemini to..."      | `gemini-3-pro-preview` | ✅ Yes          |
 | **Raw CLI**     | "fork terminal run ffmpeg..."         | N/A                    | ❌ Local only   |
+
+**SSH Remote Execution**:
+| Tool            | Trigger Examples                        | SSH Support |
+| --------------- | --------------------------------------- | ----------- |
+| **Claude Code** | "fork terminal use claude on dgx to..." | ✅ Yes      |
+| **Codex CLI**   | "fork terminal use codex on dgx to..."  | ✅ Yes      |
+| **Gemini CLI**  | "fork terminal use gemini on dgx to..." | ✅ Yes      |
+| **Raw CLI**     | "fork terminal on dgx: nvidia-smi"      | ✅ Yes      |
 
 ### Model Modifiers
 
@@ -354,6 +372,152 @@ The sandbox backend uses **waterfall credential resolution**:
 | **Output Location** | Current directory | `./sandbox-output/` locally |
 | **Use Case** | Trusted, fast tasks | Experimental, risky tasks |
 
+## SSH Remote Execution (DGX/GPU Workstations)
+
+Execute commands and AI agents on remote SSH-accessible machines like NVIDIA DGX workstations. Supports GPU detection, file sharing via Samba, and secure API key injection.
+
+### Why Use SSH Remote?
+
+**Benefits**:
+- Access powerful GPU resources on remote machines
+- Run heavy compute tasks without blocking local machine
+- Leverage pre-installed AI CLIs on dedicated workstations
+- Secure execution with key-based authentication only
+
+**Use Cases**:
+- Training ML models on DGX
+- Running GPU-accelerated inference
+- Heavy data processing
+- Multi-GPU workloads
+
+### SSH Setup
+
+#### 1. Install Dependencies
+
+```bash
+pip install paramiko pyyaml
+```
+
+#### 2. Configure SSH Access
+
+If you already have SSH config set up (e.g., `~/.ssh/config`), you can use those settings:
+
+```bash
+# Test your existing SSH connection
+ssh dgx hostname
+```
+
+#### 3. Create Fork-Terminal SSH Config
+
+Create `~/.config/fork-terminal/ssh_hosts.yaml`:
+
+```yaml
+# SSH Host Configuration for Fork Terminal
+hosts:
+  dgx:
+    hostname: your-dgx-hostname   # Or use hostname from ~/.ssh/config
+    port: 22
+    user: your-username
+    key_path: ~/.ssh/your_key     # Path to SSH private key
+    gpu_enabled: true
+    cuda_path: /usr/local/cuda
+    # Optional: Samba share for file transfer
+    # samba_share:
+    #   local_mount: /Volumes/DGX-Share
+    #   remote_path: /mnt/shared
+    environment:
+      CUDA_VISIBLE_DEVICES: "0,1,2,3,4,5,6,7"
+```
+
+#### 4. SSH Key Setup
+
+SSH uses key-based authentication only (no passwords for security):
+
+```bash
+# Generate a key if needed
+ssh-keygen -t ed25519 -f ~/.ssh/dgx_key
+
+# Copy to remote host
+ssh-copy-id -i ~/.ssh/dgx_key user@hostname
+
+# Add to known_hosts
+ssh-keyscan -H hostname >> ~/.ssh/known_hosts
+
+# Store passphrase in macOS keychain (optional)
+ssh-add --apple-use-keychain ~/.ssh/dgx_key
+```
+
+#### 5. Verify AI CLIs on Remote
+
+Ensure AI CLIs are installed on the remote host:
+
+```bash
+ssh dgx "which claude gemini codex"
+```
+
+### SSH Trigger Keywords
+
+- `on <hostname>` - "fork terminal on dgx: nvidia-smi"
+- `ssh to <hostname>` - "fork terminal ssh to dgx: python train.py"
+- `remote:<hostname>` - "fork terminal remote:dgx nvidia-smi"
+- `@<hostname>` - "@dgx nvidia-smi"
+
+### SSH Examples
+
+**Raw CLI Commands**:
+```bash
+# Check GPU status
+"fork terminal on dgx: nvidia-smi"
+
+# Run Python script
+"fork terminal on dgx: python train.py"
+
+# Check disk usage
+"fork terminal on dgx: df -h"
+```
+
+**AI Agents on DGX**:
+```bash
+# Claude on DGX
+"fork terminal use claude on dgx to analyze GPU memory usage"
+
+# Gemini on DGX
+"fork terminal use gemini on dgx to optimize the training loop"
+
+# Codex on DGX
+"fork terminal use codex on dgx to refactor the model architecture"
+```
+
+**With Auto-Close**:
+```bash
+"fork terminal use claude on dgx to check system status auto-close"
+```
+
+### SSH Key Resolution Waterfall
+
+SSH keys are resolved in this priority order:
+1. Explicit `key_path` in host config
+2. `SSH_DEFAULT_KEY_PATH` environment variable
+3. `~/.ssh/id_ed25519` (preferred)
+4. `~/.ssh/id_rsa` (fallback)
+
+### SSH Security
+
+- **Key-based auth only** - No passwords for security
+- **Host key verification** - Validates against `~/.ssh/known_hosts`
+- **API keys injected at runtime** - Never stored on remote
+- **Connection pooling** - Reused within session for performance
+
+### Backend Comparison
+
+| Aspect | Local | E2B Sandbox | SSH Remote |
+|--------|-------|-------------|------------|
+| **Speed** | Instant | ~2-5s latency | Network latency |
+| **Cost** | Free | E2B costs | Free (your hardware) |
+| **Security** | Full access | Isolated VM | Full remote access |
+| **GPU Access** | Local GPUs | No GPUs | Remote GPUs |
+| **Use Case** | Dev tasks | Experimental | Heavy compute |
+
 ## Usage Examples
 
 ### Examples you can run NOW
@@ -468,16 +632,22 @@ These examples demonstrate usage patterns for other projects.
 │   ├── claude-code.md          # Claude Code agent instructions
 │   ├── codex-cli.md            # Codex CLI instructions
 │   ├── gemini-cli.md           # Gemini CLI instructions
-│   └── e2b-sandbox.md          # E2B sandbox execution instructions
+│   ├── e2b-sandbox.md          # E2B sandbox execution instructions
+│   └── ssh-remote.md           # SSH remote execution instructions
 ├── prompts/
 │   └── fork_summary_user_prompt.md  # Template for context handoff
 └── tools/
-    ├── fork_terminal.py        # Main execution router (local/sandbox)
+    ├── fork_terminal.py        # Main execution router (local/sandbox/ssh)
     ├── sandbox_backend.py      # E2B sandbox integration
-    ├── credential_resolver.py  # API key management (env/keychain/.env)
+    ├── ssh_backend.py          # SSH remote execution backend
+    ├── ssh_host_config.py      # SSH host configuration manager
+    ├── credential_resolver.py  # API key & SSH key management
     ├── e2b-template/           # E2B template with real CLIs (Claude/Gemini/Codex)
     ├── e2b-template-base/      # Lightweight base template (planned)
     └── .e2b_template_id        # Current template ID
+
+~/.config/fork-terminal/
+└── ssh_hosts.yaml              # SSH host configurations
 ```
 
 ## Platform Support
@@ -497,5 +667,6 @@ Copy the `.claude/skills/fork-terminal/` directory to your project's `.claude/sk
 Ideas for future enhancements:
 
 - **Focus spawned windows** - Bring new terminal windows to front automatically, or keep them in background based on user preference
-- **More agentic coding tools** - Add cookbooks for OpenCode, and other agentic coding tools.
-- **Whatever else you can think of** - Feel free to fork the terminal fork skill and make it your own.
+- **More agentic coding tools** - Add cookbooks for OpenCode, and other agentic coding tools
+- **Linux local terminal support** - Add support for Linux terminal emulators
+- **Whatever else you can think of** - Feel free to fork the terminal fork skill and make it your own
