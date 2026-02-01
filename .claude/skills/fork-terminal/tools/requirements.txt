@@ -1,0 +1,13 @@
+# Fork Terminal Skill Dependencies
+# Core dependencies for all backends
+
+# SSH Backend
+paramiko>=3.0.0
+pyyaml>=6.0
+
+# E2B Sandbox Backend
+e2b>=1.0.0
+
+# Optional: For direct API fallback in sandbox
+google-genai>=1.0.0
+openai>=1.0.0

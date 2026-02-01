@@ -1,0 +1,11 @@
+# Virtual environment (auto-created by env_setup.py)
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# E2B template IDs (local configuration)
+.e2b_template_id
+.e2b_template_id_base
