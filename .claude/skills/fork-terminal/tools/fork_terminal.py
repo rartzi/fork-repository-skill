@@ -304,12 +304,20 @@ def fork_terminal(command: str) -> str:
         quoted_prompt = shlex.quote(command)
 
         if agent == "codex":
-            command = f"{nvm_source} && codex exec --full-auto --sandbox danger-full-access --skip-git-repo-check {quoted_prompt}"
+            if auto_close:
+                command = f"{nvm_source} && codex exec --full-auto --sandbox danger-full-access --skip-git-repo-check {quoted_prompt}"
+            else:
+                command = f"{nvm_source} && codex {quoted_prompt}"
         elif agent == "gemini":
-            # Gemini: Use -p flag (deprecated but shows actual output, positional only shows summary)
-            command = f"{nvm_source} && gemini -y -p {quoted_prompt}"
+            if auto_close:
+                command = f"{nvm_source} && gemini -y -p {quoted_prompt}"
+            else:
+                command = f"{nvm_source} && gemini {quoted_prompt}"
         elif agent == "claude":
-            command = f"{nvm_source} && claude -p --dangerously-skip-permissions {quoted_prompt}"
+            if auto_close:
+                command = f"{nvm_source} && claude -p --dangerously-skip-permissions {quoted_prompt}"
+            else:
+                command = f"{nvm_source} && claude {quoted_prompt}"
 
 
     # Continue with local terminal execution (existing logic)
