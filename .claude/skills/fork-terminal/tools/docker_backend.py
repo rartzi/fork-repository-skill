@@ -4,8 +4,18 @@
 import os
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 
+# Ensure tools directory is on path for imports
+tools_dir = Path(__file__).parent
+if str(tools_dir) not in sys.path:
+    sys.path.insert(0, str(tools_dir))
+
+try:
+    from credential_resolver import CredentialResolver
+except ImportError:
+    CredentialResolver = None
 
 # Docker image name for the pre-built agents image
 DOCKER_IMAGE = "fork-terminal-agents"
@@ -84,7 +94,10 @@ class DockerBackend:
             return False
 
     def _resolve_agent_env(self, agent: str) -> dict:
-        """Resolve API key environment variable for the agent."""
+        """Resolve API key for the agent using CredentialResolver waterfall.
+
+        Resolution order: env vars -> .env file -> macOS Keychain -> config files.
+        """
         env_map = {
             "claude": "ANTHROPIC_API_KEY",
             "claude-code": "ANTHROPIC_API_KEY",
@@ -93,13 +106,32 @@ class DockerBackend:
         }
 
         env_vars = {}
-        if agent and agent in env_map:
+        if not agent:
+            return env_vars
+
+        # Normalize agent name for CredentialResolver lookup
+        resolver_agent = "claude" if agent == "claude-code" else agent
+
+        # Try CredentialResolver waterfall (env -> keychain -> .env -> config)
+        if CredentialResolver is not None:
+            try:
+                resolver = CredentialResolver()
+                key_value = resolver.get_credential(resolver_agent, verbose=self.verbose)
+                key_name = env_map.get(agent)
+                if key_value and key_name:
+                    env_vars[key_name] = key_value
+                    return env_vars
+            except Exception as e:
+                self._log(f"⚠️  CredentialResolver failed: {e}")
+
+        # Fallback: direct env var lookup
+        if agent in env_map:
             key_name = env_map[agent]
             key_value = os.environ.get(key_name)
             if key_value:
                 env_vars[key_name] = key_value
             else:
-                self._log(f"⚠️  {key_name} not found in environment")
+                self._log(f"⚠️  {key_name} not found in environment or keychain")
 
         return env_vars
 
@@ -108,10 +140,12 @@ class DockerBackend:
         quoted = shlex.quote(prompt)
 
         if agent == "codex":
+            # Codex requires explicit login; pipe the API key from env var
+            login_cmd = "echo $OPENAI_API_KEY | codex login --with-api-key 2>/dev/null"
             if auto_close:
-                return f"codex exec --full-auto --sandbox danger-full-access --skip-git-repo-check {quoted}"
+                return f"{login_cmd} && codex exec --full-auto --sandbox danger-full-access --skip-git-repo-check {quoted}"
             else:
-                return f"codex {quoted}"
+                return f"{login_cmd} && codex {quoted}"
         elif agent == "gemini":
             if auto_close:
                 return f"gemini -y -p {quoted}"

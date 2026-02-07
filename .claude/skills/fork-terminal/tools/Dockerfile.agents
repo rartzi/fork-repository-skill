@@ -24,6 +24,13 @@ RUN npm install -g @anthropic-ai/claude-code@latest 2>/dev/null || true
 RUN npm install -g @google/gemini-cli@latest 2>/dev/null || true
 RUN npm install -g @openai/codex@latest 2>/dev/null || true
 
+# Create non-root user (required by Claude Code which blocks root)
+RUN useradd -m -s /bin/bash agent
+RUN mkdir -p /workspace && chown agent:agent /workspace
+
+# Switch to non-root user
+USER agent
+
 # Set working directory
 WORKDIR /workspace
 

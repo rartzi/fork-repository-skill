@@ -3,8 +3,8 @@ Credential Resolution with Waterfall Priority
 
 Resolves credentials for AI agents using a priority-based waterfall:
 1. Environment variables (highest priority)
-2. System keychain (macOS/Windows/Linux)
-3. .env file
+2. .env file
+3. System keychain (macOS/Windows/Linux)
 4. Tool-specific config files (lowest priority)
 
 SSH Key Resolution Waterfall:
@@ -76,18 +76,18 @@ class CredentialResolver:
                 print(f"✓ Found {key_name} in environment variables")
             return credential
 
-        # 2. Check system keychain
-        credential = self._get_from_keychain(key_name)
-        if credential:
-            if verbose:
-                print(f"✓ Found {key_name} in system keychain")
-            return credential
-
-        # 3. Check .env file
+        # 2. Check .env file
         credential = self._get_from_env_file(key_name)
         if credential:
             if verbose:
                 print(f"✓ Found {key_name} in .env file")
+            return credential
+
+        # 3. Check system keychain
+        credential = self._get_from_keychain(key_name)
+        if credential:
+            if verbose:
+                print(f"✓ Found {key_name} in system keychain")
             return credential
 
         # 4. Check tool-specific config files
@@ -102,8 +102,8 @@ class CredentialResolver:
             f"Credential not found for {agent} ({key_name}).\n"
             f"Checked:\n"
             f"  1. Environment variable: ${key_name}\n"
-            f"  2. System keychain\n"
-            f"  3. .env file\n"
+            f"  2. .env file\n"
+            f"  3. System keychain\n"
             f"  4. Config file: {self.CONFIG_PATHS.get(agent, 'N/A')}\n\n"
             f"Please set {key_name} in one of these locations."
         )
