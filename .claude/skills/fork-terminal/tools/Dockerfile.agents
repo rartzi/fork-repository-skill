@@ -1,0 +1,31 @@
+# Fork Terminal - AI Agents Docker Image
+# Pre-installs Claude Code, Gemini CLI, Codex CLI, and Python
+# Build: docker build -t fork-terminal-agents -f Dockerfile.agents .
+
+FROM node:20-slim
+
+LABEL maintainer="fork-terminal-skill"
+LABEL description="Pre-built image with AI coding agent CLIs for fork-terminal"
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-venv \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create symlink for python command
+RUN ln -sf /usr/bin/python3 /usr/bin/python
+
+# Install AI CLIs globally
+RUN npm install -g @anthropic-ai/claude-code@latest 2>/dev/null || true
+RUN npm install -g @google/gemini-cli@latest 2>/dev/null || true
+RUN npm install -g @openai/codex@latest 2>/dev/null || true
+
+# Set working directory
+WORKDIR /workspace
+
+# Default to bash
+CMD ["/bin/bash"]

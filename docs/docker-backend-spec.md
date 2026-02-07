@@ -272,10 +272,12 @@ Trigger: `"fork terminal in docker with gpu: python train.py"`
 
 ---
 
-## Open Questions
+## Resolved Decisions
 
-1. **Image registry** -- Should we publish the pre-built image to Docker Hub / GHCR?
-2. **Image auto-build** -- Should fork-terminal auto-build the image on first use if not found?
-3. **Compose integration** -- Should we support docker-compose for multi-agent scenarios?
-4. **Rootless Docker** -- Should we support rootless Docker for enhanced security?
-5. **Podman support** -- Should we also support Podman as an alternative container runtime?
+| Question | Decision | Rationale |
+|----------|----------|-----------|
+| **Image registry** | Local Docker daemon only | No registry publishing for v1. Users build locally. |
+| **Image auto-build** | Yes, auto-build on first use | Seamless first-run experience. Build from Dockerfile.agents if image not found. |
+| **Compose integration** | Phase 2 | Keep v1 simple. Add compose for multi-agent in Phase 2. |
+| **Rootless Docker** | Not prioritized | Standard Docker for now. |
+| **Podman support** | Not for v1 | Docker only. Add Podman later if requested. |
