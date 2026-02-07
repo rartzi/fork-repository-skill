@@ -36,6 +36,14 @@ except ImportError:
     SSHBackend = None
     SSHHostConfigManager = None
 
+# Import Docker backend
+try:
+    from docker_backend import DockerBackend
+    DOCKER_AVAILABLE = True
+except ImportError:
+    DOCKER_AVAILABLE = False
+    DockerBackend = None
+
 
 def _execute_in_sandbox(agent: str, command: str, auto_close: bool, working_dir: str = None) -> str:
     """
@@ -141,6 +149,53 @@ def _execute_via_ssh(host_name: str, agent: str, command: str, auto_close: bool,
         return f"❌ SSH execution error: {str(e)}"
 
 
+def _execute_in_docker(agent: str, command: str, auto_close: bool, working_dir: str = None, gpu: bool = False) -> str:
+    """
+    Execute a command or AI agent in a Docker container.
+
+    Args:
+        agent: Agent name ("claude", "gemini", "codex") or None for raw commands.
+        command: The command/prompt.
+        auto_close: Remove container after execution.
+        working_dir: Working directory to mount as /workspace.
+        gpu: Enable GPU passthrough.
+
+    Returns:
+        Execution result string.
+    """
+    try:
+        backend = DockerBackend(verbose=True)
+
+        print(f"\n🐳 Executing in Docker container...")
+        if agent:
+            print(f"👤 Agent: {agent}")
+        print(f"💬 Command/Prompt: {command}\n")
+
+        result = backend.execute(
+            prompt=command,
+            agent=agent,
+            auto_close=auto_close,
+            working_dir=working_dir,
+            gpu=gpu,
+        )
+
+        if result["success"]:
+            output_msg = f"✅ Docker execution completed\n"
+            if result['output']:
+                output_msg += f"\nOutput:\n{result['output']}\n"
+            if auto_close:
+                output_msg += "\n🔒 Container removed"
+            return output_msg
+        else:
+            error_msg = f"❌ Docker execution failed\n"
+            if result['error']:
+                error_msg += f"Error: {result['error']}\n"
+            return error_msg
+
+    except Exception as e:
+        return f"❌ Docker execution error: {str(e)}"
+
+
 import re
 import shlex
 
@@ -191,7 +246,15 @@ def parse_command(command: str) -> dict:
         # Remove the backend keyword from the command
         cmd = cmd[:sandbox_match.start()] + cmd[sandbox_match.end():]
 
-    # 3. Detect SSH backend - check for known host patterns
+    # 3. Detect Docker backend
+    if result["backend"] == "local":
+        docker_pattern = r"\s*(in docker|docker:|use docker|with docker)\s*"
+        docker_match = re.search(docker_pattern, cmd, re.IGNORECASE)
+        if docker_match:
+            result["backend"] = "docker"
+            cmd = cmd[:docker_match.start()] + cmd[docker_match.end():]
+
+    # 4. Detect SSH backend - check for known host patterns
     # Patterns: "on <host>", "ssh to <host>", "remote:<host>", "@<host>"
     configured_hosts = _get_configured_ssh_hosts()
 
@@ -293,6 +356,16 @@ def fork_terminal(command: str) -> str:
 
         # Allow raw CLI commands in sandbox
         return _execute_in_sandbox(agent, command, auto_close, working_dir=cwd)
+
+    # Route to Docker backend if requested
+    if backend == "docker":
+        if not DOCKER_AVAILABLE:
+            return (
+                "❌ Docker backend not available.\n"
+                "Ensure docker_backend.py is in the tools directory."
+            )
+
+        return _execute_in_docker(agent, command, auto_close, working_dir=cwd)
 
     # Handle local agent execution
     if agent is not None:

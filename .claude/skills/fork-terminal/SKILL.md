@@ -7,7 +7,7 @@ description: Fork a terminal session to a new terminal window. Use this when the
 
 The Fork Terminal skill allows you to open a new terminal window to run commands, scripts, or even AI agents. This is useful for starting a long-running process without blocking your current terminal, or for getting help from an AI to write a script.
 
-You can run commands directly on your machine, in a secure cloud sandbox for safety, or on remote SSH-accessible machines like NVIDIA DGX workstations.
+You can run commands directly on your machine, in a secure cloud sandbox for safety, in isolated Docker containers, or on remote SSH-accessible machines like NVIDIA DGX workstations.
 
 ## Common Examples
 
@@ -22,6 +22,9 @@ You can run commands directly on your machine, in a secure cloud sandbox for saf
 
 - **Run a command in a secure sandbox:**
   `fork terminal in sandbox: python -c "import os; print(os.listdir())"`
+
+- **Run a command in an isolated Docker container:**
+  `fork terminal in docker: python -c "print('hello from container')"`
 
 - **Run a command on a remote DGX:**
   `fork terminal on dgx: nvidia-smi`
@@ -42,8 +45,9 @@ ENABLE_CODEX_CLI: true
 ENABLE_CLAUDE_CODE: true
 ENABLE_E2B_SANDBOX: true
 ENABLE_SSH_BACKEND: true
+ENABLE_DOCKER_BACKEND: true
 AGENTIC_CODING_TOOLS: claude-code, codex-cli, gemini-cli
-BACKENDS: local, e2b-sandbox, ssh-remote
+BACKENDS: local, e2b-sandbox, ssh-remote, docker
 E2B_TEMPLATE_ID: whhe4zpvcrwa0ahyu559
 E2B_TEMPLATE_NAME: fork-terminal-ai-agents
 SSH_CONFIG_PATH: ~/.config/fork-terminal/ssh_hosts.yaml
@@ -153,6 +157,27 @@ The fork_terminal tool supports an optional auto-close feature:
     - Directory structure is preserved
     - Works for reports, code, images, data files, etc.
     - Agents should write output files to `/home/user/output/` for automatic retrieval
+
+### Docker (Isolated Local Execution)
+
+- IF: The user requests Docker execution AND `ENABLE_DOCKER_BACKEND` is true.
+- THEN: Read and execute: `.claude/skills/fork-terminal/cookbook/docker.md`
+- TRIGGER KEYWORDS: "in docker", "use docker", "with docker", "docker:"
+- EXAMPLES:
+  - "fork terminal use gemini in docker to <xyz>"
+  - "fork terminal use claude in docker to <xyz> auto-close"
+  - "create a new terminal with codex in docker to <xyz>"
+  - "fork terminal in docker: python script.py"
+  - "fork terminal docker: npm test auto-close"
+- NOTES:
+  - **Docker Image**: Auto-built on first use from `Dockerfile.agents`
+  - **Pre-installed CLIs**: Claude Code, Gemini CLI, Codex CLI, Python, Node.js
+  - **Free**: No cloud costs, runs on local Docker daemon
+  - **Offline**: Works without internet (once image is built)
+  - **Isolation**: Container-level isolation from host system
+  - **Volume Mount**: Working directory mounted as `/workspace`
+  - **Credentials**: Agent API keys injected via environment variables at runtime
+  - **Auto-close**: Uses `docker run --rm` to clean up container
 
 ### Raw CLI Commands
 
